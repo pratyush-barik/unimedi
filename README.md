@@ -1,8 +1,8 @@
 # UniMedi
 
-> **Disclaimer**
->
-> UniMedi is currently under active development. Features, workflows, APIs, and user interface components may change as development progresses. This repository represents the current implementation of the project and additional functionality will be added in future updates.
+## Disclaimer
+
+UniMedi is currently under active development. Features, workflows, APIs, and user interface components may change as development progresses. This repository represents the current implementation of the platform and additional functionality will be introduced in future releases.
 
 **Live Demo:** https://unimedi.vercel.app/
 
@@ -28,7 +28,6 @@ The project aims to create a scalable healthcare ecosystem that improves accessi
 - User profile management
 - Session management
 - Responsive web interface
-- Cloud deployment via Vercel
 
 ### In Development
 
@@ -78,7 +77,7 @@ The project aims to create a scalable healthcare ecosystem that improves accessi
 
 ---
 
-## Current Development Status
+## Development Status
 
 | Module | Status |
 |----------|----------|
