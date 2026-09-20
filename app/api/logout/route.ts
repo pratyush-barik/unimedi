@@ -1,14 +1,42 @@
 import { cookies } from "next/headers";
 
+export const runtime = "nodejs";
+
 export async function POST() {
-  const cookieStore = await cookies();
+  try {
+    const cookieStore = await cookies();
 
-  cookieStore.set("session", "", {
-    path: "/",
-    expires: new Date(0),
-  });
+    // Clear session_token cookie
+    cookieStore.set("session_token", "", {
+      path: "/",
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 0,
+      expires: new Date(0),
+    });
 
-  return Response.json({
-    success: true,
-  });
+    // Clear legacy session cookie if any
+    cookieStore.set("session", "", {
+      path: "/",
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 0,
+      expires: new Date(0),
+    });
+
+    return Response.json({
+      success: true,
+      message: "Logged out successfully",
+    });
+  } catch (error: any) {
+    return Response.json(
+      {
+        success: false,
+        message: error.message || "Logout failed",
+      },
+      { status: 500 }
+    );
+  }
 }
