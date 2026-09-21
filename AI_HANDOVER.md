@@ -6,7 +6,6 @@
 **Framework & Stack:** Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, Supabase (PostgreSQL + RLS), Nodemailer (custom Gmail OTP), html5-qrcode, react-qr-code.
 
 ---
-
 ## 1. Project Overview & Current Capabilities
 UniMedi is a digital healthcare platform designed for college campus/clinic environments (~10,000 target users). It bridges physical walk-in clinics and online booking systems with privacy-first patient consent mechanisms.
 
