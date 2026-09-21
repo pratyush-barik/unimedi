@@ -3,6 +3,18 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 // Default initial data for resilient demo execution
 const INITIAL_DOCTORS = [
   {
+    id: "00000000-0000-4000-a000-000000000001",
+    email: "sangeetakumarinew0606@gmail.com",
+    full_name: "Dr. Sangeeta Kumari",
+    phone: "+91 9876543210",
+    blood_group: "O+",
+    gender: "Female",
+    date_of_birth: "1988-06-06",
+    address: "Campus Health Centre, Senior Physician Suite",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
     id: "11111111-1111-4111-a111-111111111111",
     email: "dr.sharma@unimedi.org",
     full_name: "Rajesh Sharma",
@@ -80,6 +92,15 @@ const INITIAL_PATIENTS = [
 ];
 
 const INITIAL_ROLES = [
+  {
+    id: "r0-0000-0000",
+    user_id: "00000000-0000-4000-a000-000000000001",
+    role: "doctor",
+    speciality: "General Physician & Consultant",
+    license_number: "MCI-77391-S",
+    hospital_affiliation: "University Central Medical Centre",
+    created_at: new Date().toISOString(),
+  },
   {
     id: "r1-1111-1111",
     user_id: "11111111-1111-4111-a111-111111111111",
