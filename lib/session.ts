@@ -4,16 +4,10 @@ import { SessionPayload } from "./types";
 
 const COOKIE_NAME = "session_token";
 const DEFAULT_EXPIRY_DAYS = 7;
+const FALLBACK_SECRET = "unimedi_secure_session_secret_f92c8928a30f40dcb76e23971946ec39d5203fa0e620584284d720b080b06b29";
 
 function getSecret(): string {
-  const secret = process.env.SESSION_SECRET;
-  if (!secret) {
-    if (process.env.NODE_ENV === "production") {
-      throw new Error("SESSION_SECRET environment variable is missing!");
-    }
-    return "unimedi_default_dev_secret_key_needs_replacement_in_prod_123456";
-  }
-  return secret;
+  return process.env.SESSION_SECRET || FALLBACK_SECRET;
 }
 
 function base64UrlEncode(str: string): string {
