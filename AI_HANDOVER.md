@@ -93,6 +93,7 @@ unimedi/
 
 ## 5. Current Status & Verification
 - **Automated Auth Test Suite**: `npx tsx scripts/test_auth_suite.ts` &rarr; **20/20 PASSED**.
+- **Dummy Data Added** (commit `9272f55`): Expanded in-memory store with 6 additional appointments, 3 new prescriptions, 5 support queries, and 4 doctor sessions. All patient portals (Arun, Priya, Rohit, Ananya Sen, Rahul) now have rich medical histories, upcoming bookings, and active prescriptions visible across their dashboards without any database connection.
   - Wrong OTP rejection & attempt counter.
   - New patient registration & role assignment.
   - Existing patient login (duplicate prevention).

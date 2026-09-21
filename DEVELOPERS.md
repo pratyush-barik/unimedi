@@ -122,3 +122,53 @@ npx tsx scripts/test_auth_suite.ts
 - **Admin Access:**
   - Navigate to [http://localhost:3000/unimedi-admin](http://localhost:3000/unimedi-admin)
   - Enter passkey: `unimedi_admin_super_secret_key_2026_9b83a21e4f`
+
+---
+
+## 5. Dummy Data Reference (In-Memory Store — `lib/supabase.ts`)
+
+All demo data is pre-seeded into the in-memory resilient store at startup. No database connection is needed to run the app locally.
+
+### Demo Accounts (Patients)
+| Name | Email | Blood Group | Notes |
+|---|---|---|---|
+| Arun Patel | `arun.patel@student.edu` | O+ | Migraine Rx + Cardiology follow-up |
+| Priya Verma | `priya.verma@student.edu` | B+ | Viral fever Rx + upcoming appt |
+| Rohit Singh | `rohit.singh@student.edu` | AB+ | Ankle injury Rx + ECG follow-up |
+| Ananya Sen | `ananya.sen@student.edu` | A+ | Gastritis Rx + pending checkup |
+| Rahul Verma | `rahul.verma@student.edu` | B- | Rhinitis Rx, upcoming appt |
+
+### Demo Accounts (Doctors)
+| Name | Email | Speciality |
+|---|---|---|
+| Dr. Sangeeta Kumari | `sangeetakumarinew0606@gmail.com` | General Physician & Consultant |
+| Dr. Rajesh Sharma | `dr.sharma@unimedi.org` | Cardiology |
+| Dr. Ananya Deshmukh | `dr.ananya@unimedi.org` | General Physician |
+| Dr. Vikram Kapoor | `dr.kapoor@unimedi.org` | Orthopedics & Sports Medicine |
+
+### Sample Appointments (11 total)
+- **Today**: Arun, Priya, Rohit, Ananya Sen with Dr. Sangeeta; Ananya Sen pending with Dr. Ananya
+- **Yesterday**: Priya (completed — viral fever), Ananya Sen (completed — gastritis), Rahul (completed — rhinitis)
+- **Tomorrow**: Arun→Dr. Sharma (cardiology ECG), Priya→Dr. Ananya (throat), Rohit→Dr. Sharma (ECG follow-up), Rahul→Dr. Sharma (rhinitis follow-up)
+
+### Sample Medical Records / Prescriptions (7 total)
+1. **Arun Patel** — Tension Migraine with Ocular Fatigue *(Dr. Sangeeta)*
+2. **Priya Verma** — Acute Viral Pharyngitis *(Dr. Sangeeta)*
+3. **Rahul Verma** — Perennial Allergic Rhinitis *(Dr. Sangeeta)*
+4. **Priya Verma** — Acute Viral Pharyngitis with Fever *(Dr. Ananya)*
+5. **Ananya Sen** — Acute Gastroenteritis with Mild Dehydration *(Dr. Sangeeta)*
+6. **Arun Patel** — Exercise-Induced Sinus Tachycardia *(Dr. Sharma)*
+7. **Rohit Singh** — Right Ankle Inversion Injury *(Dr. Kapoor)*
+
+### Sample Support Queries (5 total — visible in Admin Dashboard)
+1. Priya Verma — Medical leave certificate request *(in_review)*
+2. Arun Patel — Prescription PDF pharmacy question *(resolved)*
+3. Rohit Singh — Unable to book appointment slot *(pending)*
+4. Ananya Sen — QR scanner not working on iPhone *(in_review)*
+5. Dr. Meera Pillai — New doctor account registration request *(pending)*
+
+### Doctor Sessions (4 total)
+- Arun Patel ↔ Dr. Sangeeta Kumari *(approved)*
+- Priya Verma ↔ Dr. Ananya Deshmukh *(approved)*
+- Rohit Singh ↔ Dr. Vikram Kapoor *(approved)*
+- Ananya Sen ↔ Dr. Sangeeta Kumari *(approved)*
