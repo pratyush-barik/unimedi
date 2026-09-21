@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-export default function PatientSignupPage() {
+export default function PatientSignUpPage() {
   const router = useRouter();
 
   const [fullName, setFullName] = useState("");
@@ -14,7 +14,10 @@ export default function PatientSignupPage() {
 
   const [otpSent, setOtpSent] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ text: string; type: "error" | "success" } | null>(null);
+  const [message, setMessage] = useState<{
+    text: string;
+    type: "error" | "success" | "info";
+  } | null>(null);
 
   const handleSendOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -167,7 +170,7 @@ export default function PatientSignupPage() {
               <input
                 type="tel"
                 required
-                placeholder="+1 (555) 000-0000"
+                placeholder="+91 9876543210"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 font-medium focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"
@@ -179,7 +182,7 @@ export default function PatientSignupPage() {
               disabled={loading || !email || !phone || !fullName}
               className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white font-bold py-3.5 rounded-xl shadow-xs transition"
             >
-              {loading ? "Sending One-Time Code..." : "Send Verification OTP"}
+              {loading ? "Sending Verification Code..." : "Send Verification OTP"}
             </button>
           </form>
         ) : (

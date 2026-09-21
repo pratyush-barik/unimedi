@@ -13,7 +13,10 @@ export default function DoctorLoginPage() {
   const [otpSent, setOtpSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
-  const [message, setMessage] = useState<{ text: string; type: "error" | "success" | "info" } | null>(null);
+  const [message, setMessage] = useState<{
+    text: string;
+    type: "error" | "success" | "info";
+  } | null>(null);
 
   useEffect(() => {
     fetchCurrentSession().then(({ authenticated, user }) => {
@@ -120,7 +123,7 @@ export default function DoctorLoginPage() {
       <div className="bg-white w-full max-w-md rounded-3xl shadow-xl border border-slate-200/80 p-8 sm:p-10">
         <div className="text-center mb-8">
           <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 font-black text-xl flex items-center justify-center mx-auto mb-4 shadow-xs">
-            🩺
+            👨‍⚕️
           </div>
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
             Doctor Clinical Portal
@@ -153,7 +156,7 @@ export default function DoctorLoginPage() {
               <input
                 type="email"
                 required
-                placeholder="doctor@hospital.org"
+                placeholder="doctor@unimedi.org"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 font-medium focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"
@@ -165,7 +168,7 @@ export default function DoctorLoginPage() {
               disabled={loading || !email}
               className="w-full bg-slate-900 hover:bg-black disabled:bg-slate-300 text-white font-bold py-3.5 rounded-xl shadow-xs transition"
             >
-              {loading ? "Sending One-Time Code..." : "Send Verification Code"}
+              {loading ? "Sending Verification Code..." : "Send Verification Code"}
             </button>
           </form>
         ) : (
@@ -209,7 +212,7 @@ export default function DoctorLoginPage() {
               onClick={handleSendOtp}
               className="w-full text-xs text-slate-500 hover:text-slate-800 font-semibold py-2 transition"
             >
-              Didn't receive code? Resend OTP
+              Didn&apos;t receive code? Resend OTP
             </button>
           </form>
         )}

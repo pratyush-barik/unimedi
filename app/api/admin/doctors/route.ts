@@ -23,7 +23,8 @@ export async function GET(req: Request) {
 
     if (rolesErr) throw rolesErr;
 
-    const userIds = doctorRoles.map((r) => r.user_id);
+    const rolesList = (doctorRoles || []) as any[];
+    const userIds = rolesList.map((r: any) => r.user_id);
     let usersMap = new Map();
 
     if (userIds.length > 0) {
@@ -33,10 +34,11 @@ export async function GET(req: Request) {
         .in("id", userIds);
 
       if (usersErr) throw usersErr;
-      usersMap = new Map(users.map((u) => [u.id, u]));
+      const userList = (users || []) as any[];
+      usersMap = new Map(userList.map((u: any) => [u.id, u]));
     }
 
-    const doctors = doctorRoles.map((r) => {
+    const doctors = rolesList.map((r: any) => {
       const user = usersMap.get(r.user_id) || {};
       return {
         id: r.user_id,
@@ -231,7 +233,8 @@ export async function DELETE(req: Request) {
       .select("id")
       .eq("user_id", id);
 
-    if (!otherRoles || otherRoles.length === 0) {
+    const otherRolesList = (otherRoles || []) as any[];
+    if (otherRolesList.length === 0) {
       await supabase.from("users").delete().eq("id", id);
     }
 

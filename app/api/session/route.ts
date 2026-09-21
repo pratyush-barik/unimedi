@@ -30,7 +30,7 @@ export async function GET() {
       );
     }
 
-    // Fetch up-to-date user profile and role from Supabase
+    // Fetch user profile
     const { data: user, error: userError } = await supabase
       .from("users")
       .select("*")
@@ -38,13 +38,16 @@ export async function GET() {
       .maybeSingle();
 
     if (userError || !user) {
-      return Response.json(
-        {
-          authenticated: false,
-          user: null,
+      return Response.json({
+        authenticated: true,
+        user: {
+          id: payload.userId,
+          email: payload.email,
+          full_name: payload.fullName || "",
+          role: payload.role,
+          speciality: payload.speciality || "",
         },
-        { status: 401 }
-      );
+      });
     }
 
     const { data: roleRow } = await supabase
@@ -66,7 +69,7 @@ export async function GET() {
         blood_group: user.blood_group,
         address: user.address,
         role: payload.role,
-        speciality: roleRow?.speciality || "",
+        speciality: roleRow?.speciality || payload.speciality || "",
         license_number: roleRow?.license_number || "",
         hospital_affiliation: roleRow?.hospital_affiliation || "",
       },

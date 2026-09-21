@@ -14,6 +14,7 @@ export async function POST(req: Request) {
 
     const cleanEmail = email?.trim().toLowerCase();
     const cleanPhone = phone?.trim();
+    const targetRole = role || "patient";
 
     if (!cleanEmail || !EMAIL_REGEX.test(cleanEmail)) {
       return Response.json(
@@ -37,19 +38,8 @@ export async function POST(req: Request) {
       );
     }
 
-    // LOGIN FLOW
-    if (type === "login") {
-      const targetRole = role || "patient";
-      if (!["patient", "doctor", "admin"].includes(targetRole)) {
-        return Response.json(
-          {
-            success: false,
-            message: "Invalid role specified.",
-          },
-          { status: 400 }
-        );
-      }
-
+    // DOCTOR FLOW: Strict verification of pre-provisioned doctor accounts
+    if (targetRole === "doctor") {
       const { data: user, error: userErr } = await supabase
         .from("users")
         .select("id, email")
@@ -60,7 +50,7 @@ export async function POST(req: Request) {
         return Response.json(
           {
             success: false,
-            message: "No account found with this email. Please sign up.",
+            message: "Doctor account not found. Doctor accounts must be provisioned by a hospital administrator.",
           },
           { status: 404 }
         );
@@ -70,71 +60,74 @@ export async function POST(req: Request) {
         .from("user_roles")
         .select("*")
         .eq("user_id", user.id)
-        .eq("role", targetRole)
+        .eq("role", "doctor")
         .maybeSingle();
 
       if (roleErr || !roleRow) {
         return Response.json(
           {
             success: false,
-            message: `Account is not registered as a ${targetRole}.`,
+            message: "Account is not registered with doctor privileges.",
           },
           { status: 403 }
         );
       }
     }
 
-    // SIGNUP FLOW
-    if (type === "signup") {
-      if (!cleanPhone || !PHONE_REGEX.test(cleanPhone)) {
+    // PATIENT SIGNUP FLOW: Conflict checks
+    if (type === "signup" && targetRole === "patient") {
+      if (cleanPhone && !PHONE_REGEX.test(cleanPhone)) {
         return Response.json(
           {
             success: false,
-            message: "A valid phone number is required.",
+            message: "Please provide a valid phone number.",
           },
           { status: 400 }
         );
       }
 
-      const { data: emailUser } = await supabase
-        .from("users")
-        .select("id, phone")
-        .eq("email", cleanEmail)
-        .maybeSingle();
+      if (cleanPhone) {
+        const { data: emailUser } = await supabase
+          .from("users")
+          .select("id, phone")
+          .eq("email", cleanEmail)
+          .maybeSingle();
 
-      if (emailUser && emailUser.phone && emailUser.phone !== cleanPhone) {
-        return Response.json(
-          {
-            success: false,
-            message: "This email is already registered with a different phone number.",
-          },
-          { status: 409 }
-        );
-      }
+        if (emailUser && emailUser.phone && emailUser.phone !== cleanPhone) {
+          return Response.json(
+            {
+              success: false,
+              message: "This email is already registered with a different phone number.",
+            },
+            { status: 409 }
+          );
+        }
 
-      const { data: phoneUser } = await supabase
-        .from("users")
-        .select("id, email")
-        .eq("phone", cleanPhone)
-        .maybeSingle();
+        const { data: phoneUser } = await supabase
+          .from("users")
+          .select("id, email")
+          .eq("phone", cleanPhone)
+          .maybeSingle();
 
-      if (phoneUser && phoneUser.email && phoneUser.email !== cleanEmail) {
-        return Response.json(
-          {
-            success: false,
-            message: "This phone number is already registered with a different email.",
-          },
-          { status: 409 }
-        );
+        if (phoneUser && phoneUser.email && phoneUser.email !== cleanEmail) {
+          return Response.json(
+            {
+              success: false,
+              message: "This phone number is already registered with a different email.",
+            },
+            { status: 409 }
+          );
+        }
       }
     }
 
+    // Generate & send OTP
     const otp = generateOTP(cleanEmail);
     await sendOTP(cleanEmail, otp);
 
     return Response.json({
       success: true,
-      message: `OTP sent successfully to ${cleanEmail}.`,
+      message: `Verification code sent successfully to ${cleanEmail}.`,
     });
   } catch (error: any) {
     console.error("send-email-otp error:", error);

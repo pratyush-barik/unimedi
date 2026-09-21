@@ -4,9 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { fetchCurrentSession } from "@/lib/authClient";
-import { supabase } from "@/lib/supabase";
 
-export default function PatientSigninPage() {
+export default function PatientSignInPage() {
   const router = useRouter();
 
   const [email, setEmail] = useState("");
@@ -14,10 +13,12 @@ export default function PatientSigninPage() {
   const [otpSent, setOtpSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
-  const [message, setMessage] = useState<{ text: string; type: "error" | "success" | "info" } | null>(null);
+  const [message, setMessage] = useState<{
+    text: string;
+    type: "error" | "success" | "info";
+  } | null>(null);
 
   useEffect(() => {
-    // If already authenticated as patient, redirect to dashboard
     fetchCurrentSession().then(({ authenticated, user }) => {
       if (authenticated && user?.role === "patient") {
         router.replace("/patient/dashboard");
@@ -55,7 +56,7 @@ export default function PatientSigninPage() {
       if (data.success) {
         setOtpSent(true);
         setMessage({
-          text: `A 6-digit OTP has been sent to ${cleanEmail}. Please check your inbox.`,
+          text: `A 6-digit verification code has been sent to ${cleanEmail}. Please check your inbox.`,
           type: "success",
         });
       } else {
@@ -101,14 +102,8 @@ export default function PatientSigninPage() {
         return;
       }
 
-      // Check if user has complete profile in users table
-      const { data: userRow } = await supabase
-        .from("users")
-        .select("blood_group, gender, date_of_birth")
-        .eq("email", cleanEmail)
-        .maybeSingle();
-
-      if (!userRow || !userRow.blood_group) {
+      // Check if user has complete profile
+      if (!data.user?.blood_group || !data.user?.gender || !data.user?.date_of_birth) {
         router.replace("/patient/profile-setup");
       } else {
         router.replace("/patient/dashboard");
@@ -135,7 +130,7 @@ export default function PatientSigninPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 font-black text-xl flex items-center justify-center mx-auto mb-4 shadow-xs">
-            👤
+            🔐
           </div>
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
             Patient Sign In
@@ -181,7 +176,7 @@ export default function PatientSigninPage() {
               disabled={loading || !email}
               className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white font-bold py-3.5 rounded-xl shadow-xs transition"
             >
-              {loading ? "Sending One-Time Code..." : "Send Verification Code"}
+              {loading ? "Sending Verification Code..." : "Send Verification Code"}
             </button>
           </form>
         ) : (
@@ -225,7 +220,7 @@ export default function PatientSigninPage() {
               onClick={handleSendOtp}
               className="w-full text-xs text-slate-500 hover:text-slate-800 font-semibold py-2 transition"
             >
-              Didn't receive code? Resend OTP
+              Didn&apos;t receive code? Resend OTP
             </button>
           </form>
         )}
