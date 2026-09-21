@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { MedicalRecord, MedicineItem } from "@/lib/types";
 import PrescriptionPrintModal from "@/app/components/PrescriptionPrintModal";
+import { fetchCurrentSession } from "@/lib/authClient";
 
 export default function PatientHistoryPage() {
   const router = useRouter();
@@ -19,19 +20,17 @@ export default function PatientHistoryPage() {
 
   const loadHistory = async () => {
     try {
-      const stored = localStorage.getItem("session");
+      const { authenticated, user: sessionUser } = await fetchCurrentSession();
 
-      if (!stored) {
+      if (!authenticated || !sessionUser || sessionUser.role !== "patient") {
         router.push("/patient/signin");
         return;
       }
 
-      const session = JSON.parse(stored);
-
       const { data: user } = await supabase
         .from("users")
         .select("id, full_name, email")
-        .eq("email", session.email)
+        .eq("email", sessionUser.email)
         .maybeSingle();
 
       if (!user) {

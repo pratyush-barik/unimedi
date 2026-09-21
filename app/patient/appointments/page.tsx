@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Appointment, AppointmentStatus } from "@/lib/types";
+import { fetchCurrentSession } from "@/lib/authClient";
 
 type DoctorOption = {
   id: string;
@@ -53,24 +54,19 @@ export default function PatientAppointmentsPage() {
 
   const initPatient = async () => {
     try {
-      const stored = localStorage.getItem("session");
-      if (!stored) {
+      const { authenticated, user: sessionUser } = await fetchCurrentSession();
+
+      if (!authenticated || !sessionUser || sessionUser.role !== "patient") {
         router.push("/patient/signin");
         return;
       }
 
-      const session = JSON.parse(stored);
-      if (session.role !== "patient") {
-        router.push("/patient/signin");
-        return;
-      }
-
-      setPatientEmail(session.email);
+      setPatientEmail(sessionUser.email);
 
       const { data: user } = await supabase
         .from("users")
         .select("id")
-        .eq("email", session.email)
+        .eq("email", sessionUser.email)
         .maybeSingle();
 
       if (!user) {
