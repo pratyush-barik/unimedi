@@ -112,13 +112,12 @@ npx tsx scripts/test_auth_suite.ts
 
 ### 3. Demo Accounts for Testing:
 - **Doctor Accounts:**
-  - `dr.sharma@unimedi.org` (Cardiology)
-  - `dr.ananya@unimedi.org` (General Physician)
-  - `dr.kapoor@unimedi.org` (Orthopedics)
+  - `sangeetakumarinew0606@gmail.com` (General Physician & Consultant)
+  - `scarlight.c39@gmail.com` (Cardiology)
 - **Patient Accounts:**
-  - `arun.patel@student.edu`
-  - `priya.verma@student.edu`
-  - `rohit.singh@student.edu`
+  - `arun.patel.unimedi@gmail.com`
+  - `priya.verma.unimedi@gmail.com`
+  - `rohit.singh.unimedi@gmail.com`
 - **Admin Access:**
   - Navigate to [http://localhost:3000/unimedi-admin](http://localhost:3000/unimedi-admin)
   - Enter passkey: `unimedi_admin_super_secret_key_2026_9b83a21e4f`
@@ -132,33 +131,31 @@ All demo data is pre-seeded into the in-memory resilient store at startup. No da
 ### Demo Accounts (Patients)
 | Name | Email | Blood Group | Notes |
 |---|---|---|---|
-| Arun Patel | `arun.patel@student.edu` | O+ | Migraine Rx + Cardiology follow-up |
-| Priya Verma | `priya.verma@student.edu` | B+ | Viral fever Rx + upcoming appt |
-| Rohit Singh | `rohit.singh@student.edu` | AB+ | Ankle injury Rx + ECG follow-up |
-| Ananya Sen | `ananya.sen@student.edu` | A+ | Gastritis Rx + pending checkup |
-| Rahul Verma | `rahul.verma@student.edu` | B- | Rhinitis Rx, upcoming appt |
+| Arun Patel | `arun.patel.unimedi@gmail.com` | O+ | Migraine Rx + Cardiology follow-up |
+| Priya Verma | `priya.verma.unimedi@gmail.com` | B+ | Viral fever Rx + upcoming appt |
+| Rohit Singh | `rohit.singh.unimedi@gmail.com` | AB+ | Ankle injury Rx + ECG follow-up |
+| Ananya Sen | `ananya.sen.unimedi@gmail.com` | A+ | Gastritis Rx + pending checkup |
+| Rahul Verma | `rahul.verma.unimedi@gmail.com` | B- | Rhinitis Rx, upcoming appt |
 
 ### Demo Accounts (Doctors)
 | Name | Email | Speciality |
 |---|---|---|
 | Dr. Sangeeta Kumari | `sangeetakumarinew0606@gmail.com` | General Physician & Consultant |
-| Dr. Rajesh Sharma | `dr.sharma@unimedi.org` | Cardiology |
-| Dr. Ananya Deshmukh | `dr.ananya@unimedi.org` | General Physician |
-| Dr. Vikram Kapoor | `dr.kapoor@unimedi.org` | Orthopedics & Sports Medicine |
+| Dr. Rajesh Sharma | `scarlight.c39@gmail.com` | Cardiology |
 
 ### Sample Appointments (11 total)
-- **Today**: Arun, Priya, Rohit, Ananya Sen with Dr. Sangeeta; Ananya Sen pending with Dr. Ananya
+- **Today**: Arun, Priya, Rohit, Ananya Sen with Dr. Sangeeta; Ananya Sen with Dr. Sharma
 - **Yesterday**: Priya (completed — viral fever), Ananya Sen (completed — gastritis), Rahul (completed — rhinitis)
-- **Tomorrow**: Arun→Dr. Sharma (cardiology ECG), Priya→Dr. Ananya (throat), Rohit→Dr. Sharma (ECG follow-up), Rahul→Dr. Sharma (rhinitis follow-up)
+- **Tomorrow**: Arun→Dr. Sharma (cardiology ECG), Priya→Dr. Sharma (throat), Rohit→Dr. Sharma (ECG follow-up), Rahul→Dr. Sharma (rhinitis follow-up)
 
 ### Sample Medical Records / Prescriptions (7 total)
 1. **Arun Patel** — Tension Migraine with Ocular Fatigue *(Dr. Sangeeta)*
 2. **Priya Verma** — Acute Viral Pharyngitis *(Dr. Sangeeta)*
 3. **Rahul Verma** — Perennial Allergic Rhinitis *(Dr. Sangeeta)*
-4. **Priya Verma** — Acute Viral Pharyngitis with Fever *(Dr. Ananya)*
+4. **Priya Verma** — Acute Viral Pharyngitis with Fever *(Dr. Sharma)*
 5. **Ananya Sen** — Acute Gastroenteritis with Mild Dehydration *(Dr. Sangeeta)*
 6. **Arun Patel** — Exercise-Induced Sinus Tachycardia *(Dr. Sharma)*
-7. **Rohit Singh** — Right Ankle Inversion Injury *(Dr. Kapoor)*
+7. **Rohit Singh** — Right Ankle Inversion Injury *(Dr. Sharma)*
 
 ### Sample Support Queries (5 total — visible in Admin Dashboard)
 1. Priya Verma — Medical leave certificate request *(in_review)*

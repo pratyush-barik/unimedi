@@ -34,15 +34,17 @@ export default function DoctorDashboardPage() {
       }
       setLoading(false);
     });
+  }, []);
+
+  useEffect(() => {
+    if (!doctor?.id) return;
 
     const interval = setInterval(() => {
-      if (doctor?.id) {
-        checkActiveSession(doctor.id);
-      }
+      checkActiveSession(doctor.id);
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [router, doctor?.id]);
+  }, [doctor?.id]);
 
   const loadDashboardData = async (doctorId: string) => {
     try {

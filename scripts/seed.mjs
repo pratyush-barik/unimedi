@@ -40,28 +40,20 @@ async function seed() {
     console.log("👨‍⚕️ Creating Doctor accounts...");
     const doctorsData = [
       {
-        email: "dr.sharma@unimedi.org",
+        email: "sangeetakumarinew0606@gmail.com",
+        full_name: "Sangeeta Kumari",
+        phone: "+91 9876543210",
+        speciality: "General Physician & Consultant",
+        license_number: "MCI-77391-S",
+        hospital_affiliation: "Campus Health Centre",
+      },
+      {
+        email: "scarlight.c39@gmail.com",
         full_name: "Rajesh Sharma",
-        phone: "+91 9811002233",
+        phone: "+91 9811122233",
         speciality: "Cardiology",
-        license_number: "MD-CARD-7821",
-        hospital_affiliation: "UniMedi Central Health Centre",
-      },
-      {
-        email: "dr.ananya@unimedi.org",
-        full_name: "Ananya Iyer",
-        phone: "+91 9822003344",
-        speciality: "General Physician & Pediatrics",
-        license_number: "MD-GEN-9912",
-        hospital_affiliation: "UniMedi Campus Clinic",
-      },
-      {
-        email: "dr.kapoor@unimedi.org",
-        full_name: "Vikram Kapoor",
-        phone: "+91 9833004455",
-        speciality: "Orthopedics & Sports Medicine",
-        license_number: "MD-ORTHO-4501",
-        hospital_affiliation: "UniMedi Sports Institute",
+        license_number: "MCI-48291-C",
+        hospital_affiliation: "University Central Medical Centre",
       },
     ];
 
@@ -102,7 +94,7 @@ async function seed() {
     console.log("👤 Creating Patient accounts...");
     const patientsData = [
       {
-        email: "arun.patel@student.edu",
+        email: "arun.patel.unimedi@gmail.com",
         full_name: "Arun Patel",
         phone: "+91 9876543210",
         blood_group: "O+",
@@ -111,7 +103,7 @@ async function seed() {
         address: "Hostel Block 4, Room 210, Campus North",
       },
       {
-        email: "priya.verma@student.edu",
+        email: "priya.verma.unimedi@gmail.com",
         full_name: "Priya Verma",
         phone: "+91 9876543211",
         blood_group: "B+",
@@ -120,7 +112,7 @@ async function seed() {
         address: "Hostel Block 2, Room 105, Campus South",
       },
       {
-        email: "rohit.singh@student.edu",
+        email: "rohit.singh.unimedi@gmail.com",
         full_name: "Rohit Singh",
         phone: "+91 9876543212",
         blood_group: "AB+",
@@ -163,13 +155,12 @@ async function seed() {
       console.log(`  ✓ Patient created: ${p.full_name} (${p.email})`);
     }
 
-    const docSharma = doctorMap.get("dr.sharma@unimedi.org");
-    const docAnanya = doctorMap.get("dr.ananya@unimedi.org");
-    const docKapoor = doctorMap.get("dr.kapoor@unimedi.org");
+    const docSangeeta = doctorMap.get("sangeetakumarinew0606@gmail.com");
+    const docSharma = doctorMap.get("scarlight.c39@gmail.com");
 
-    const patientArun = patientMap.get("arun.patel@student.edu");
-    const patientPriya = patientMap.get("priya.verma@student.edu");
-    const patientRohit = patientMap.get("rohit.singh@student.edu");
+    const patientArun = patientMap.get("arun.patel.unimedi@gmail.com");
+    const patientPriya = patientMap.get("priya.verma.unimedi@gmail.com");
+    const patientRohit = patientMap.get("rohit.singh.unimedi@gmail.com");
 
     // 4. Insert Appointments
     console.log("🗓️ Creating Sample Appointments...");
@@ -188,7 +179,7 @@ async function seed() {
       },
       {
         patient_id: patientPriya.id,
-        doctor_id: docAnanya.id,
+        doctor_id: docSangeeta.id,
         appointment_date: dayAfter,
         time_slot: "11:30 AM - 12:00 PM",
         type: "online_booking",
@@ -197,7 +188,7 @@ async function seed() {
       },
       {
         patient_id: patientRohit.id,
-        doctor_id: docKapoor.id,
+        doctor_id: docSharma.id,
         appointment_date: new Date().toISOString().split("T")[0],
         time_slot: "02:00 PM - 02:30 PM",
         type: "walk_in_qr",
@@ -227,7 +218,7 @@ async function seed() {
     const { error: rxErr } = await supabase.from("medical_records").insert([
       {
         patient_id: patientRohit.id,
-        doctor_id: docKapoor.id,
+        doctor_id: docSharma.id,
         appointment_id: completedAptId,
         diagnosis: "Right Ankle Inversion Injury (Grade 1 Lateral Ligament Strain)",
         medicines: [
@@ -284,17 +275,17 @@ async function seed() {
       {
         user_id: patientPriya.id,
         name: "Priya Verma",
-        email: "priya.verma@student.edu",
+        email: "priya.verma.unimedi@gmail.com",
         role: "patient",
         subject: "Medical Leave Certificate Request",
         message: "Hello, I visited the campus health centre on Monday for viral fever. Could the doctor kindly upload the digital medical certificate for college attendance?",
         status: "in_review",
-        admin_response: "Under review by Dr. Ananya. Will be dispatched shortly.",
+        admin_response: "Under review by the Medical Officer. Will be dispatched shortly.",
       },
       {
         user_id: patientArun.id,
         name: "Arun Patel",
-        email: "arun.patel@student.edu",
+        email: "arun.patel.unimedi@gmail.com",
         role: "patient",
         subject: "Prescription PDF Export Question",
         message: "Can I directly present the digital PDF prescription generated by UniMedi to the university campus pharmacy for medicine dispensing?",
@@ -308,8 +299,8 @@ async function seed() {
     console.log("🎉 Database Clean Seed Finished Successfully!");
     console.log("==========================================");
     console.log("Demo Accounts Available:");
-    console.log("Doctors: dr.sharma@unimedi.org, dr.ananya@unimedi.org, dr.kapoor@unimedi.org");
-    console.log("Patients: arun.patel@student.edu, priya.verma@student.edu, rohit.singh@student.edu");
+    console.log("Doctors: sangeetakumarinew0606@gmail.com, scarlight.c39@gmail.com");
+    console.log("Patients: arun.patel.unimedi@gmail.com, priya.verma.unimedi@gmail.com, rohit.singh.unimedi@gmail.com");
     console.log("==========================================");
   } catch (error) {
     console.error("❌ Seed Error:", error);

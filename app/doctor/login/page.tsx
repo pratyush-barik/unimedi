@@ -156,7 +156,7 @@ export default function DoctorLoginPage() {
               <input
                 type="email"
                 required
-                placeholder="doctor@unimedi.org"
+                placeholder="doctor@gmail.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 font-medium focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"

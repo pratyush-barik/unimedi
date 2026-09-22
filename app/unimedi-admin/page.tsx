@@ -496,7 +496,7 @@ export default function AdminPage() {
                       disabled={Boolean(editingDoctor)}
                       value={docEmail}
                       onChange={(e) => setDocEmail(e.target.value)}
-                      placeholder="doctor@hospital.org"
+                      placeholder="doctor@gmail.com"
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 disabled:bg-slate-100"
                     />
                   </div>

@@ -16,7 +16,7 @@ const INITIAL_DOCTORS = [
   },
   {
     id: "11111111-1111-4111-a111-111111111111",
-    email: "dr.sharma@unimedi.org",
+    email: "scarlight.c39@gmail.com",
     full_name: "Rajesh Sharma",
     phone: "+91 9811122233",
     blood_group: "O+",
@@ -26,36 +26,12 @@ const INITIAL_DOCTORS = [
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
-  {
-    id: "22222222-2222-4222-a222-222222222222",
-    email: "dr.ananya@unimedi.org",
-    full_name: "Ananya Deshmukh",
-    phone: "+91 9822233344",
-    blood_group: "A+",
-    gender: "Female",
-    date_of_birth: "1985-09-20",
-    address: "Campus Health Centre, OPD Clinic 2",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "33333333-3333-4333-a333-333333333333",
-    email: "dr.kapoor@unimedi.org",
-    full_name: "Vikram Kapoor",
-    phone: "+91 9833344455",
-    blood_group: "B+",
-    gender: "Male",
-    date_of_birth: "1980-11-05",
-    address: "Sports Medicine Complex, Ortho Wing",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
 ];
 
 const INITIAL_PATIENTS = [
   {
     id: "44444444-4444-4444-a444-444444444444",
-    email: "arun.patel@student.edu",
+    email: "arun.patel.unimedi@gmail.com",
     full_name: "Arun Patel",
     phone: "+91 9876543210",
     blood_group: "O+",
@@ -67,7 +43,7 @@ const INITIAL_PATIENTS = [
   },
   {
     id: "55555555-5555-4555-a555-555555555555",
-    email: "priya.verma@student.edu",
+    email: "priya.verma.unimedi@gmail.com",
     full_name: "Priya Verma",
     phone: "+91 9876543211",
     blood_group: "B+",
@@ -79,7 +55,7 @@ const INITIAL_PATIENTS = [
   },
   {
     id: "66666666-6666-4666-a666-666666666666",
-    email: "rohit.singh@student.edu",
+    email: "rohit.singh.unimedi@gmail.com",
     full_name: "Rohit Singh",
     phone: "+91 9876543212",
     blood_group: "AB+",
@@ -91,7 +67,7 @@ const INITIAL_PATIENTS = [
   },
   {
     id: "77777777-7777-4777-a777-777777777777",
-    email: "ananya.sen@student.edu",
+    email: "ananya.sen.unimedi@gmail.com",
     full_name: "Ananya Sen",
     phone: "+91 9876543213",
     blood_group: "A+",
@@ -103,7 +79,7 @@ const INITIAL_PATIENTS = [
   },
   {
     id: "88888888-8888-4888-a888-888888888888",
-    email: "rahul.verma@student.edu",
+    email: "rahul.verma.unimedi@gmail.com",
     full_name: "Rahul Verma",
     phone: "+91 9876543214",
     blood_group: "B-",
@@ -132,24 +108,6 @@ const INITIAL_ROLES = [
     speciality: "Cardiology",
     license_number: "MCI-48291-C",
     hospital_affiliation: "University Central Medical Centre",
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: "r2-2222-2222",
-    user_id: "22222222-2222-4222-a222-222222222222",
-    role: "doctor",
-    speciality: "General Physician",
-    license_number: "MCI-59102-G",
-    hospital_affiliation: "Campus Health Centre",
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: "r3-3333-3333",
-    user_id: "33333333-3333-4333-a333-333333333333",
-    role: "doctor",
-    speciality: "Orthopedics & Sports Medicine",
-    license_number: "MCI-62041-O",
-    hospital_affiliation: "Sports Medicine & Rehabilitation Wing",
     created_at: new Date().toISOString(),
   },
   {
@@ -284,11 +242,11 @@ const SAMPLE_APPOINTMENTS = [
     updated_at: new Date().toISOString(),
   },
 
-  // Additional appointments for Priya Verma (Dr. Ananya)
+  // Additional appointments for Priya Verma (Dr. Sharma)
   {
     id: "apt-priya-1",
     patient_id: "55555555-5555-4555-a555-555555555555",
-    doctor_id: "22222222-2222-4222-a222-222222222222",
+    doctor_id: "11111111-1111-4111-a111-111111111111",
     appointment_date: tomorrowDate,
     time_slot: "09:30 AM - 10:00 AM",
     type: "online_booking",
@@ -300,7 +258,7 @@ const SAMPLE_APPOINTMENTS = [
   {
     id: "apt-priya-2",
     patient_id: "55555555-5555-4555-a555-555555555555",
-    doctor_id: "22222222-2222-4222-a222-222222222222",
+    doctor_id: "00000000-0000-4000-a000-000000000001",
     appointment_date: yesterdayDate,
     time_slot: "10:00 AM - 10:30 AM",
     type: "online_booking",
@@ -314,7 +272,7 @@ const SAMPLE_APPOINTMENTS = [
   {
     id: "apt-ananya-1",
     patient_id: "77777777-7777-4777-a777-777777777777",
-    doctor_id: "22222222-2222-4222-a222-222222222222",
+    doctor_id: "11111111-1111-4111-a111-111111111111",
     appointment_date: todayDate,
     time_slot: "12:00 PM - 12:30 PM",
     type: "online_booking",
@@ -507,11 +465,11 @@ const SAMPLE_MEDICAL_RECORDS = [
     notes: "Avoid dust exposure, use HEPA/dust mask during campus outdoor activities. Follow-up after 2 weeks if congestion persists.",
     created_at: new Date(Date.now() - 86400000).toISOString(),
   },
-  // Sample record for Dr. Kapoor
+  // Sample record for Dr. Sharma
   {
     id: "med-1",
     patient_id: "66666666-6666-4666-a666-666666666666",
-    doctor_id: "33333333-3333-4333-a333-333333333333",
+    doctor_id: "11111111-1111-4111-a111-111111111111",
     appointment_id: "apt-sang-3",
     diagnosis: "Right Ankle Inversion Injury (Grade 1 Lateral Ligament Strain)",
     medicines: [
@@ -535,11 +493,11 @@ const SAMPLE_MEDICAL_RECORDS = [
     notes: "Apply RICE protocol.",
     created_at: new Date().toISOString(),
   },
-  // Priya Verma prescription (Dr. Ananya - viral fever)
+  // Priya Verma prescription (Dr. Sharma - viral fever)
   {
     id: "med-priya-1",
     patient_id: "55555555-5555-4555-a555-555555555555",
-    doctor_id: "22222222-2222-4222-a222-222222222222",
+    doctor_id: "11111111-1111-4111-a111-111111111111",
     appointment_id: "apt-priya-2",
     diagnosis: "Acute Viral Pharyngitis with Low Grade Fever",
     medicines: [
@@ -722,14 +680,14 @@ if (!globalForDB.unimediStore) {
       },
       {
         id: "sess-2",
-        doctor_id: "22222222-2222-4222-a222-222222222222",
+        doctor_id: "11111111-1111-4111-a111-111111111111",
         patient_id: "55555555-5555-4555-a555-555555555555",
         approved: true,
         created_at: new Date(Date.now() - 86400000).toISOString(),
       },
       {
         id: "sess-3",
-        doctor_id: "33333333-3333-4333-a333-333333333333",
+        doctor_id: "11111111-1111-4111-a111-111111111111",
         patient_id: "66666666-6666-4666-a666-666666666666",
         approved: true,
         created_at: new Date(Date.now() - 86400000).toISOString(),
@@ -750,12 +708,12 @@ if (!globalForDB.unimediStore) {
         id: "uq-1",
         user_id: "55555555-5555-4555-a555-555555555555",
         name: "Priya Verma",
-        email: "priya.verma@student.edu",
+        email: "priya.verma.unimedi@gmail.com",
         role: "patient",
         subject: "Medical Leave Certificate Request",
         message: "Hello, I visited the campus health centre yesterday for viral fever. Could the doctor kindly upload the digital medical certificate for college attendance office?",
         status: "in_review",
-        admin_response: "Under review by Dr. Ananya. Medical certificate will be dispatched within 24 hours.",
+        admin_response: "Under review by the Medical Officer. Medical certificate will be dispatched within 24 hours.",
         created_at: new Date(Date.now() - 86400000).toISOString(),
         updated_at: new Date().toISOString(),
       },
@@ -763,7 +721,7 @@ if (!globalForDB.unimediStore) {
         id: "uq-2",
         user_id: "44444444-4444-4444-a444-444444444444",
         name: "Arun Patel",
-        email: "arun.patel@student.edu",
+        email: "arun.patel.unimedi@gmail.com",
         role: "patient",
         subject: "Prescription PDF Export Question",
         message: "Can I directly present the digital PDF prescription generated by UniMedi to the university campus pharmacy for medicine dispensing?",
@@ -776,10 +734,10 @@ if (!globalForDB.unimediStore) {
         id: "uq-3",
         user_id: "66666666-6666-4666-a666-666666666666",
         name: "Rohit Singh",
-        email: "rohit.singh@student.edu",
+        email: "rohit.singh.unimedi@gmail.com",
         role: "patient",
         subject: "Unable to Book Appointment Slot",
-        message: "I am trying to book a follow-up appointment with Dr. Kapoor for my ankle injury but the 3 PM slot shows as unavailable. Could you please check and assist?",
+        message: "I am trying to book a follow-up appointment with the cardiologist for my ECG review but the 3 PM slot shows as unavailable. Could you please check and assist?",
         status: "pending",
         admin_response: null,
         created_at: new Date(Date.now() - 3600000).toISOString(),
@@ -789,7 +747,7 @@ if (!globalForDB.unimediStore) {
         id: "uq-4",
         user_id: "77777777-7777-4777-a777-777777777777",
         name: "Ananya Sen",
-        email: "ananya.sen@student.edu",
+        email: "ananya.sen.unimedi@gmail.com",
         role: "patient",
         subject: "QR Scanner Not Working on iPhone",
         message: "When I try to scan the doctor QR code at the clinic using the UniMedi app on my iPhone, the camera opens but doesn't detect the QR. I have given camera permission. Please help.",

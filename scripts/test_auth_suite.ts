@@ -38,7 +38,7 @@ async function runTestSuite() {
   // TEST 2: New Patient Signup Flow
   // ----------------------------------------------------
   console.log("\n[TEST 2] New Patient Signup Flow (User Creation & Role)");
-  const newPatientEmail = "sneha.k@student.edu";
+  const newPatientEmail = "sneha.k.unimedi@gmail.com";
   const newPhone = "+91 9123456780";
   const newName = "Sneha Kulkarni";
 
@@ -81,7 +81,7 @@ async function runTestSuite() {
   // TEST 3: Existing Patient Login Flow
   // ----------------------------------------------------
   console.log("\n[TEST 3] Existing Patient Login Flow (No Duplicates)");
-  const existingEmail = "arun.patel@student.edu";
+  const existingEmail = "arun.patel.unimedi@gmail.com";
   const { data: existingUser } = await supabase.from("users").select("*").eq("email", existingEmail).maybeSingle();
   assert(Boolean(existingUser && existingUser.email === existingEmail), "Existing patient retrieved from database");
 
@@ -106,7 +106,7 @@ async function runTestSuite() {
   // TEST 4: Patient Login with New Email (Auto-provisioning)
   // ----------------------------------------------------
   console.log("\n[TEST 4] Patient Login with New Email (Auto-provisioning)");
-  const autoEmail = "dev.sharma@student.edu";
+  const autoEmail = "dev.sharma.unimedi@gmail.com";
   const { data: preAutoCheck } = await supabase.from("users").select("*").eq("email", autoEmail).maybeSingle();
   assert(!preAutoCheck, "Auto-provisioning target does not exist initially");
 
@@ -137,7 +137,7 @@ async function runTestSuite() {
   // TEST 5: Provisioned Doctor Login
   // ----------------------------------------------------
   console.log("\n[TEST 5] Provisioned Doctor Login");
-  const doctorEmail = "dr.sharma@unimedi.org";
+  const doctorEmail = "scarlight.c39@gmail.com";
   const { data: docUser } = await supabase.from("users").select("*").eq("email", doctorEmail).maybeSingle();
   assert(Boolean(docUser && docUser.email === doctorEmail), "Provisioned doctor exists in users table");
 
@@ -159,7 +159,7 @@ async function runTestSuite() {
   // TEST 6: Unregistered / Arbitrary Doctor Login Check
   // ----------------------------------------------------
   console.log("\n[TEST 6] Unregistered Doctor Login Check (Must Be Blocked)");
-  const fakeDocEmail = "fake.doctor@hospital.org";
+  const fakeDocEmail = "fake.doctor@unregistered.com";
   const { data: fakeDocUser } = await supabase.from("users").select("*").eq("email", fakeDocEmail).maybeSingle();
   assert(!fakeDocUser, "Arbitrary unprovisioned doctor is not found in database");
 
