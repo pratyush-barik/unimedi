@@ -8,7 +8,7 @@ UniMedi is currently under active development. Features, workflows, APIs, and us
 
 ---
 
-## Overview
+## Overview 
 
 UniMedi is a healthcare management platform designed to simplify interactions between patients and healthcare professionals through a centralized digital system. The platform currently provides secure authentication, role-based dashboards, and QR-based doctor-patient connectivity.
 
