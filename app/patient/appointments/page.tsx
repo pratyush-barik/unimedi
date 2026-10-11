@@ -15,17 +15,22 @@ type DoctorOption = {
 };
 
 const TIME_SLOTS = [
-  "09:00 AM - 09:30 AM",
-  "09:30 AM - 10:00 AM",
-  "10:00 AM - 10:30 AM",
-  "10:30 AM - 11:00 AM",
-  "11:30 AM - 12:00 PM",
-  "02:00 PM - 02:30 PM",
-  "02:30 PM - 03:00 PM",
-  "03:30 PM - 04:00 PM",
-  "04:00 PM - 04:30 PM",
-  "05:00 PM - 05:30 PM",
+  { value: "09:00-09:30", label: "09:00 AM - 09:30 AM" },
+  { value: "09:30-10:00", label: "09:30 AM - 10:00 AM" },
+  { value: "10:00-10:30", label: "10:00 AM - 10:30 AM" },
+  { value: "10:30-11:00", label: "10:30 AM - 11:00 AM" },
+  { value: "11:30-12:00", label: "11:30 AM - 12:00 PM" },
+  { value: "14:00-14:30", label: "02:00 PM - 02:30 PM" },
+  { value: "14:30-15:00", label: "02:30 PM - 03:00 PM" },
+  { value: "15:30-16:00", label: "03:30 PM - 04:00 PM" },
+  { value: "16:00-16:30", label: "04:00 PM - 04:30 PM" },
+  { value: "17:00-17:30", label: "05:00 PM - 05:30 PM" },
 ];
+
+const formatSlot = (slot: string) => {
+  const match = TIME_SLOTS.find((s) => s.value === slot);
+  return match ? match.label : slot;
+};
 
 export default function PatientAppointmentsPage() {
   const router = useRouter();
@@ -44,7 +49,7 @@ export default function PatientAppointmentsPage() {
   const [selectedDate, setSelectedDate] = useState(
     new Date(Date.now() + 86400000).toISOString().split("T")[0]
   );
-  const [selectedSlot, setSelectedSlot] = useState(TIME_SLOTS[0]);
+  const [selectedSlot, setSelectedSlot] = useState(TIME_SLOTS[0].value);
   const [reason, setReason] = useState("");
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
@@ -63,19 +68,22 @@ export default function PatientAppointmentsPage() {
 
       setPatientEmail(sessionUser.email);
 
-      const { data: user } = await supabase
-        .from("users")
+      const { data: profile } = await supabase
+        .from("profiles")
         .select("id")
         .eq("email", sessionUser.email)
         .maybeSingle();
 
-      if (!user) {
+      if (!profile) {
         router.push("/patient/signin");
         return;
       }
 
-      setPatientId(user.id);
-      await Promise.all([loadDoctors(), loadAppointments(user.id)]);
+      // Ensure patient record exists
+      await supabase.from("patients").insert([{ id: profile.id }]).select();
+
+      setPatientId(profile.id);
+      await Promise.all([loadDoctors(), loadAppointments(profile.id)]);
     } catch {
       setMessage({ text: "Failed to load session", type: "error" });
     } finally {
@@ -85,30 +93,20 @@ export default function PatientAppointmentsPage() {
 
   const loadDoctors = async () => {
     try {
-      const { data: roles } = await supabase
-        .from("user_roles")
-        .select("user_id, speciality")
-        .eq("role", "doctor");
+      const { data: doctorRows } = await supabase
+        .from("doctors")
+        .select("id, verification_status, profiles!doctors_id_fkey(id, full_name, email), medical_specialties(name)");
 
-      if (!roles || roles.length === 0) return;
+      if (!doctorRows || doctorRows.length === 0) return;
 
-      const doctorList: DoctorOption[] = [];
-      for (const r of roles) {
-        const { data: u } = await supabase
-          .from("users")
-          .select("id, full_name, email")
-          .eq("id", r.user_id)
-          .maybeSingle();
-
-        if (u) {
-          doctorList.push({
-            id: u.id,
-            full_name: u.full_name || "Doctor",
-            email: u.email,
-            speciality: r.speciality || "General Physician",
-          });
-        }
-      }
+      const doctorList: DoctorOption[] = doctorRows
+        .filter((d: any) => d.verification_status !== "suspended")
+        .map((d: any) => ({
+          id: d.id,
+          full_name: d.profiles?.full_name || "Doctor",
+          email: d.profiles?.email || "",
+          speciality: d.medical_specialties?.name || "General Medicine",
+        }));
 
       setDoctors(doctorList);
       if (doctorList.length > 0) {
@@ -123,7 +121,7 @@ export default function PatientAppointmentsPage() {
     try {
       const { data: rows } = await supabase
         .from("appointments")
-        .select("*")
+        .select("*, doctors(id, profiles!doctors_id_fkey(full_name, email), medical_specialties(name))")
         .eq("patient_id", pId)
         .order("appointment_date", { ascending: false });
 
@@ -132,30 +130,14 @@ export default function PatientAppointmentsPage() {
         return;
       }
 
-      const enriched: Appointment[] = [];
-      for (const row of rows) {
-        const { data: docUser } = await supabase
-          .from("users")
-          .select("full_name, email")
-          .eq("id", row.doctor_id)
-          .maybeSingle();
-
-        const { data: docRole } = await supabase
-          .from("user_roles")
-          .select("speciality")
-          .eq("user_id", row.doctor_id)
-          .eq("role", "doctor")
-          .maybeSingle();
-
-        enriched.push({
-          ...row,
-          doctor: {
-            full_name: docUser?.full_name || "Doctor",
-            email: docUser?.email || "",
-            speciality: docRole?.speciality || "General Practice",
-          },
-        });
-      }
+      const enriched: Appointment[] = rows.map((row: any) => ({
+        ...row,
+        doctor: {
+          full_name: row.doctors?.profiles?.full_name || "Doctor",
+          email: row.doctors?.profiles?.email || "",
+          speciality: row.doctors?.medical_specialties?.name || "General Medicine",
+        },
+      }));
 
       setAppointments(enriched);
     } catch (e) {
@@ -382,7 +364,7 @@ export default function PatientAppointmentsPage() {
                         </p>
                         <div className="flex flex-wrap gap-y-1 gap-x-4 mt-2 text-xs text-gray-500 font-medium">
                           <span>🗓️ {new Date(apt.appointment_date).toLocaleDateString()}</span>
-                          <span>⏰ {apt.time_slot}</span>
+                          <span>⏰ {formatSlot(apt.time_slot)}</span>
                           {apt.reason_for_visit && (
                             <span className="text-gray-700">💬 Reason: {apt.reason_for_visit}</span>
                           )}
@@ -477,16 +459,16 @@ export default function PatientAppointmentsPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                   {TIME_SLOTS.map((slot) => (
                     <button
-                      key={slot}
+                      key={slot.value}
                       type="button"
-                      onClick={() => setSelectedSlot(slot)}
+                      onClick={() => setSelectedSlot(slot.value)}
                       className={`p-2.5 rounded-lg text-xs font-semibold border transition ${
-                        selectedSlot === slot
+                        selectedSlot === slot.value
                           ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
                           : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
                       }`}
                     >
-                      {slot}
+                      {slot.label}
                     </button>
                   ))}
                 </div>
@@ -536,7 +518,7 @@ export default function PatientAppointmentsPage() {
                         {getStatusBadge(apt.status)}
                       </div>
                       <p className="text-xs text-gray-500 mt-1">
-                        {apt.doctor?.speciality} • {new Date(apt.appointment_date).toLocaleDateString()} ({apt.time_slot})
+                        {apt.doctor?.speciality} • {new Date(apt.appointment_date).toLocaleDateString()} ({formatSlot(apt.time_slot)})
                       </p>
                       {apt.reason_for_visit && (
                         <p className="text-xs text-gray-600 mt-1">Reason: {apt.reason_for_visit}</p>

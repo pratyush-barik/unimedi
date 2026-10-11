@@ -41,7 +41,7 @@ export async function POST(req: Request) {
     // DOCTOR FLOW: Strict verification of pre-provisioned doctor accounts
     if (targetRole === "doctor") {
       const { data: user, error: userErr } = await supabase
-        .from("users")
+        .from("profiles")
         .select("id, email")
         .eq("email", cleanEmail)
         .maybeSingle();
@@ -88,7 +88,7 @@ export async function POST(req: Request) {
 
       if (cleanPhone) {
         const { data: emailUser } = await supabase
-          .from("users")
+          .from("profiles")
           .select("id, phone")
           .eq("email", cleanEmail)
           .maybeSingle();
@@ -104,7 +104,7 @@ export async function POST(req: Request) {
         }
 
         const { data: phoneUser } = await supabase
-          .from("users")
+          .from("profiles")
           .select("id, email")
           .eq("phone", cleanPhone)
           .maybeSingle();

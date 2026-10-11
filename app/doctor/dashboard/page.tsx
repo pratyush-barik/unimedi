@@ -68,9 +68,9 @@ export default function DoctorDashboardPage() {
 
       setPendingCount(pendingApts?.length || 0);
 
-      // Treated records count
+      // Treated consultations count
       const { data: records } = await supabase
-        .from("medical_records")
+        .from("consultations")
         .select("id")
         .eq("doctor_id", doctorId);
 
@@ -82,33 +82,29 @@ export default function DoctorDashboardPage() {
 
   const checkActiveSession = async (doctorId: string) => {
     try {
-      const { data: sessions } = await supabase
-        .from("doctor_sessions")
-        .select("*")
+      const { data: consents } = await supabase
+        .from("consultation_consents")
+        .select("id, status, patient_id, patients(id, profiles!patients_id_fkey(id, full_name, email, phone))")
         .eq("doctor_id", doctorId)
-        .order("created_at", { ascending: false })
+        .in("status", ["requested", "granted"])
+        .order("granted_at", { ascending: false })
         .limit(1);
 
-      if (!sessions || sessions.length === 0) {
+      if (!consents || consents.length === 0) {
         setActiveSession(null);
         return;
       }
 
-      const latest = sessions[0];
-      const { data: patient } = await supabase
-        .from("users")
-        .select("id, full_name, email, phone")
-        .eq("id", latest.patient_id)
-        .maybeSingle();
-
-      if (patient) {
+      const latest = consents[0];
+      const patientProfile = (latest as any).patients?.profiles;
+      if (patientProfile) {
         setActiveSession({
           sessionId: latest.id,
-          patientId: patient.id,
-          patientName: patient.full_name || "Patient",
-          patientEmail: patient.email,
-          patientPhone: patient.phone || undefined,
-          approved: latest.approved,
+          patientId: latest.patient_id,
+          patientName: patientProfile.full_name || "Patient",
+          patientEmail: patientProfile.email,
+          patientPhone: patientProfile.phone || undefined,
+          approved: latest.status === "granted",
         });
       }
     } catch (e) {

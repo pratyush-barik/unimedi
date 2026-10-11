@@ -48,6 +48,9 @@ export default function PatientConnectPage() {
       return;
     }
 
+    // Ensure patient record exists in patients table
+    await supabase.from("patients").insert([{ id: user.id }]).select();
+
     setCurrentPatientId(user.id);
     await loadCameras();
   };
@@ -143,57 +146,62 @@ export default function PatientConnectPage() {
         }
       } catch {}
 
-      // Look up doctor in users
-      let query = supabase.from("users").select("id, full_name, email");
+      // Look up doctor in doctors joined with profiles and medical_specialties
+      let doctorQuery = supabase
+        .from("doctors")
+        .select("id, hospital_affiliation, profiles!doctors_id_fkey(id, full_name, email), medical_specialties(name)");
+
       if (doctorEmailOrId.includes("@")) {
-        query = query.eq("email", doctorEmailOrId.toLowerCase());
+        const { data: p } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("email", doctorEmailOrId.toLowerCase())
+          .maybeSingle();
+        if (p) {
+          doctorQuery = doctorQuery.eq("id", p.id);
+        } else {
+          doctorQuery = doctorQuery.eq("id", "00000000-0000-0000-0000-000000000000");
+        }
       } else {
-        query = query.eq("id", doctorEmailOrId);
+        doctorQuery = doctorQuery.eq("id", doctorEmailOrId);
       }
 
-      const { data: docUser, error: docErr } = await query.maybeSingle();
+      const { data: docRecord, error: docErr } = await doctorQuery.maybeSingle();
 
-      if (docErr || !docUser) {
+      if (docErr || !docRecord) {
         setMessage({ text: "Doctor not recognized. Please scan a valid UniMedi doctor QR.", type: "error" });
         scanningRef.current = false;
         setLoading(false);
         return;
       }
 
-      // Check role
-      const { data: docRole } = await supabase
-        .from("user_roles")
-        .select("speciality, hospital_affiliation")
-        .eq("user_id", docUser.id)
-        .eq("role", "doctor")
-        .maybeSingle();
-
       doctorObj = {
-        id: docUser.id,
-        full_name: docUser.full_name || "Doctor",
-        email: docUser.email,
-        speciality: docRole?.speciality || "General Physician",
-        hospital_affiliation: docRole?.hospital_affiliation || "UniMedi Clinic",
+        id: docRecord.id,
+        full_name: (docRecord as any).profiles?.full_name || "Doctor",
+        email: (docRecord as any).profiles?.email || "",
+        speciality: (docRecord as any).medical_specialties?.name || "General Medicine",
+        hospital_affiliation: docRecord.hospital_affiliation || "UniMedi Clinic",
       };
 
       setScannedDoctor(doctorObj);
 
-      // Create session with approved = FALSE (Requiring explicit user confirmation)
-      const { data: createdSession, error: sessionErr } = await supabase
-        .from("doctor_sessions")
+      // Create consultation consent with status = 'requested'
+      const { data: createdConsent, error: consentErr } = await supabase
+        .from("consultation_consents")
         .insert([
           {
             patient_id: currentPatientId,
             doctor_id: doctorObj.id,
-            approved: false, // Security constraint: Never auto-approve
+            status: "requested",
+            scope: "full_history",
           },
         ])
         .select()
         .single();
 
-      if (sessionErr) throw sessionErr;
+      if (consentErr) throw consentErr;
 
-      setSessionId(createdSession.id);
+      setSessionId(createdConsent.id);
       await stopScanner();
     } catch (err: any) {
       console.error("QR connect error:", err);
@@ -209,9 +217,14 @@ export default function PatientConnectPage() {
     setLoading(true);
 
     try {
+      const expiresAt = new Date(Date.now() + 2 * 3600 * 1000).toISOString();
       const { error } = await supabase
-        .from("doctor_sessions")
-        .update({ approved: true })
+        .from("consultation_consents")
+        .update({
+          status: "granted",
+          granted_at: new Date().toISOString(),
+          expires_at: expiresAt,
+        })
         .eq("id", sessionId);
 
       if (error) throw error;
@@ -230,7 +243,13 @@ export default function PatientConnectPage() {
 
   const denyAccess = async () => {
     if (sessionId) {
-      await supabase.from("doctor_sessions").delete().eq("id", sessionId);
+      await supabase
+        .from("consultation_consents")
+        .update({
+          status: "revoked",
+          revoked_at: new Date().toISOString(),
+        })
+        .eq("id", sessionId);
     }
     setScannedDoctor(null);
     setSessionId(null);

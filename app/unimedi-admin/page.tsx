@@ -111,13 +111,13 @@ export default function AdminPage() {
         .select("*", { count: "exact", head: true });
 
       const { count: recordCount } = await supabase
-        .from("medical_records")
+        .from("consultations")
         .select("*", { count: "exact", head: true });
 
       const { count: sessionCount } = await supabase
-        .from("doctor_sessions")
+        .from("consultation_consents")
         .select("*", { count: "exact", head: true })
-        .eq("approved", true);
+        .eq("status", "granted");
 
       setStats({
         patients: patientCount || 0,

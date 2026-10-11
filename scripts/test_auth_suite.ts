@@ -43,19 +43,20 @@ async function runTestSuite() {
   const newName = "Sneha Kulkarni";
 
   // Check user does not exist before
-  const { data: preCheck } = await supabase.from("users").select("*").eq("email", newPatientEmail).maybeSingle();
+  const { data: preCheck } = await supabase.from("profiles").select("*").eq("email", newPatientEmail).maybeSingle();
   assert(!preCheck, "New patient does not exist prior to signup");
 
   // Simulate verify-otp logic for signup
-  const { data: newUser, error: createErr } = await supabase.from("users").insert([
+  const { data: newUser, error: createErr } = await supabase.from("profiles").insert([
     {
+      id: "99999999-9999-4999-a999-999999999999",
       email: newPatientEmail,
       phone: newPhone,
       full_name: newName,
     }
   ]).select().single();
 
-  assert(!createErr && newUser && newUser.id, "New patient user created in users table");
+  assert(!createErr && newUser && newUser.id, "New patient user created in profiles table");
 
   const { data: roleInsert } = await supabase.from("user_roles").insert([
     {
@@ -82,24 +83,24 @@ async function runTestSuite() {
   // ----------------------------------------------------
   console.log("\n[TEST 3] Existing Patient Login Flow (No Duplicates)");
   const existingEmail = "arun.patel.unimedi@gmail.com";
-  const { data: existingUser } = await supabase.from("users").select("*").eq("email", existingEmail).maybeSingle();
+  const { data: existingUser } = await supabase.from("profiles").select("*").eq("email", existingEmail).maybeSingle();
   assert(Boolean(existingUser && existingUser.email === existingEmail), "Existing patient retrieved from database");
 
-  const { data: existingUserRole } = await supabase.from("user_roles").select("*").eq("user_id", existingUser.id).eq("role", "patient").maybeSingle();
+  const { data: existingUserRole } = await supabase.from("user_roles").select("*").eq("user_id", existingUser?.id).eq("role", "patient").maybeSingle();
   assert(Boolean(existingUserRole && existingUserRole.role === "patient"), "Existing patient role verified");
 
   const existingPatientToken = signSessionToken({
-    userId: existingUser.id,
-    email: existingUser.email,
+    userId: existingUser?.id,
+    email: existingUser?.email,
     role: "patient",
-    fullName: existingUser.full_name,
+    fullName: existingUser?.full_name,
   });
 
   const verifiedExistingPayload = verifySessionToken(existingPatientToken);
-  assert(Boolean(verifiedExistingPayload && verifiedExistingPayload.userId === existingUser.id), "Existing patient session signed and verified");
+  assert(Boolean(verifiedExistingPayload && verifiedExistingPayload.userId === existingUser?.id), "Existing patient session signed and verified");
 
   // Count total users with that email to ensure no duplicates
-  const { data: allArunUsers } = await supabase.from("users").select("*").eq("email", existingEmail);
+  const { data: allArunUsers } = await supabase.from("profiles").select("*").eq("email", existingEmail);
   assert(allArunUsers.length === 1, "Exactly one user record exists for existing patient (no duplicates)");
 
   // ----------------------------------------------------
@@ -107,13 +108,14 @@ async function runTestSuite() {
   // ----------------------------------------------------
   console.log("\n[TEST 4] Patient Login with New Email (Auto-provisioning)");
   const autoEmail = "dev.sharma.unimedi@gmail.com";
-  const { data: preAutoCheck } = await supabase.from("users").select("*").eq("email", autoEmail).maybeSingle();
+  const { data: preAutoCheck } = await supabase.from("profiles").select("*").eq("email", autoEmail).maybeSingle();
   assert(!preAutoCheck, "Auto-provisioning target does not exist initially");
 
   // Auto create
   const autoName = autoEmail.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
-  const { data: autoUser } = await supabase.from("users").insert([
+  const { data: autoUser } = await supabase.from("profiles").insert([
     {
+      id: "88888888-8888-4888-a888-888888888888",
       email: autoEmail,
       full_name: autoName,
     }
@@ -138,29 +140,28 @@ async function runTestSuite() {
   // ----------------------------------------------------
   console.log("\n[TEST 5] Provisioned Doctor Login");
   const doctorEmail = "scarlight.c39@gmail.com";
-  const { data: docUser } = await supabase.from("users").select("*").eq("email", doctorEmail).maybeSingle();
-  assert(Boolean(docUser && docUser.email === doctorEmail), "Provisioned doctor exists in users table");
+  const { data: docUser } = await supabase.from("profiles").select("*").eq("email", doctorEmail).maybeSingle();
+  assert(Boolean(docUser && docUser.email === doctorEmail), "Provisioned doctor exists in profiles table");
 
-  const { data: docRole } = await supabase.from("user_roles").select("*").eq("user_id", docUser.id).eq("role", "doctor").maybeSingle();
-  assert(Boolean(docRole && docRole.role === "doctor" && docRole.speciality === "Cardiology"), "Doctor credentials and Cardiology speciality verified");
+  const { data: docRole } = await supabase.from("user_roles").select("*").eq("user_id", docUser?.id).eq("role", "doctor").maybeSingle();
+  assert(Boolean(docRole && docRole.role === "doctor"), "Doctor credentials verified");
 
   const docToken = signSessionToken({
-    userId: docUser.id,
-    email: docUser.email,
+    userId: docUser?.id,
+    email: docUser?.email,
     role: "doctor",
-    fullName: docUser.full_name,
-    speciality: docRole.speciality,
+    fullName: docUser?.full_name,
   });
 
   const docPayload = verifySessionToken(docToken);
-  assert(Boolean(docPayload && docPayload.role === "doctor" && docPayload.speciality === "Cardiology"), "Doctor session token signed and verified");
+  assert(Boolean(docPayload && docPayload.role === "doctor"), "Doctor session token signed and verified");
 
   // ----------------------------------------------------
   // TEST 6: Unregistered / Arbitrary Doctor Login Check
   // ----------------------------------------------------
   console.log("\n[TEST 6] Unregistered Doctor Login Check (Must Be Blocked)");
   const fakeDocEmail = "fake.doctor@unregistered.com";
-  const { data: fakeDocUser } = await supabase.from("users").select("*").eq("email", fakeDocEmail).maybeSingle();
+  const { data: fakeDocUser } = await supabase.from("profiles").select("*").eq("email", fakeDocEmail).maybeSingle();
   assert(!fakeDocUser, "Arbitrary unprovisioned doctor is not found in database");
 
   // ----------------------------------------------------
@@ -170,7 +171,7 @@ async function runTestSuite() {
   const restoredPayload = verifySessionToken(patientToken);
   assert(restoredPayload !== null, "Session token decoded cleanly");
 
-  const { data: restoredUser } = await supabase.from("users").select("*").eq("id", restoredPayload!.userId).maybeSingle();
+  const { data: restoredUser } = await supabase.from("profiles").select("*").eq("id", restoredPayload!.userId).maybeSingle();
   assert(Boolean(restoredUser && restoredUser.email === newPatientEmail), "Full profile restored from database via session userId");
 
   console.log("\n==================================================");

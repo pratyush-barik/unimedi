@@ -29,42 +29,58 @@ export default function DoctorPatientsPage() {
       }
 
       const { data: rows, error } = await supabase
-        .from("medical_records")
-        .select("*")
+        .from("consultations")
+        .select("*, patients(id, blood_group, profiles!patients_id_fkey(full_name, email, phone)), diagnoses(diagnosis_name, notes), prescriptions(*, prescription_items(*)), clinical_vitals(*)")
         .eq("doctor_id", user.id)
-        .order("created_at", { ascending: false });
+        .order("started_at", { ascending: false });
 
       if (error || !rows) {
         setRecords([]);
         return;
       }
 
-      const enriched: MedicalRecord[] = [];
-      for (const row of rows) {
-        const { data: patientUser } = await supabase
-          .from("users")
-          .select("full_name, email, phone, blood_group")
-          .eq("id", row.patient_id)
-          .maybeSingle();
+      const enriched: MedicalRecord[] = rows.map((c: any) => {
+        const patient = c.patients;
+        const profile = patient?.profiles;
+        const diag = c.diagnoses?.[0]?.diagnosis_name || c.chief_complaint || "Clinical Consultation";
+        const rx = c.prescriptions;
+        const rxItems = rx?.prescription_items || [];
+        const vitals = c.clinical_vitals;
 
-        enriched.push({
-          id: row.id,
-          patient_id: row.patient_id,
-          doctor_id: row.doctor_id,
-          appointment_id: row.appointment_id,
-          diagnosis: row.diagnosis,
-          medicines: row.medicines,
-          notes: row.notes,
-          vitals: row.vitals,
-          lab_tests: row.lab_tests,
-          created_at: row.created_at,
+        return {
+          id: c.id,
+          patient_id: c.patient_id,
+          doctor_id: c.doctor_id,
+          appointment_id: c.appointment_id || undefined,
+          diagnosis: diag,
+          medicines: rxItems.map((item: any) => ({
+            name: item.medicine_name,
+            dosage: item.dosage,
+            frequency: item.frequency,
+            duration: item.duration,
+            timing: item.timing,
+            instructions: item.special_instructions || "",
+          })),
+          notes: c.clinical_notes || rx?.general_instructions || "",
+          vitals: vitals
+            ? {
+                bp: vitals.systolic_bp && vitals.diastolic_bp ? `${vitals.systolic_bp}/${vitals.diastolic_bp}` : undefined,
+                pulse: vitals.pulse_bpm ? `${vitals.pulse_bpm} bpm` : undefined,
+                temperature: vitals.temperature_f ? `${vitals.temperature_f} °F` : undefined,
+                weight: vitals.weight_kg ? `${vitals.weight_kg} kg` : undefined,
+                spo2: vitals.spo2_percent ? `${vitals.spo2_percent}%` : undefined,
+                respiratory_rate: vitals.respiratory_rate ? `${vitals.respiratory_rate} /min` : undefined,
+              }
+            : {},
+          lab_tests: [],
+          created_at: c.started_at || c.created_at,
           doctorName: user.full_name || "Doctor",
           doctorSpeciality: user.speciality || "Specialist",
           doctorHospital: user.hospital_affiliation || "UniMedi Clinic",
-          patientName: patientUser?.full_name || "Patient",
-          patientEmail: patientUser?.email || "",
-        });
-      }
+          patientName: profile?.full_name || "Patient",
+          patientEmail: profile?.email || "",
+        };
+      });
 
       setRecords(enriched);
     } catch (e) {

@@ -43,12 +43,13 @@ export async function POST(req: Request) {
     const cookieStore = await cookies();
 
     // =========================
+    // =========================
     // DOCTOR AUTHENTICATION
     // =========================
     if (targetRole === "doctor") {
       const { data: user, error: userErr } = await supabase
-        .from("users")
-        .select("*")
+        .from("profiles")
+        .select("id, email, full_name, phone")
         .eq("email", cleanEmail)
         .maybeSingle();
 
@@ -64,7 +65,7 @@ export async function POST(req: Request) {
 
       const { data: roleRow, error: roleErr } = await supabase
         .from("user_roles")
-        .select("*")
+        .select("role")
         .eq("user_id", user.id)
         .eq("role", "doctor")
         .maybeSingle();
@@ -79,13 +80,30 @@ export async function POST(req: Request) {
         );
       }
 
+      // Fetch doctor details from normalized doctors table
+      const { data: doctorRow } = await supabase
+        .from("doctors")
+        .select("license_number, hospital_affiliation, specialty_id, qualification")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      let specialtyName = "General Physician";
+      if (doctorRow?.specialty_id) {
+        const { data: spec } = await supabase
+          .from("medical_specialties")
+          .select("name")
+          .eq("id", doctorRow.specialty_id)
+          .maybeSingle();
+        if (spec?.name) specialtyName = spec.name;
+      }
+
       // Generate signed session token
       const sessionToken = signSessionToken({
         userId: user.id,
         email: user.email,
         role: "doctor",
         fullName: user.full_name,
-        speciality: roleRow.speciality || "",
+        speciality: specialtyName,
       });
 
       cookieStore.set(SESSION_COOKIE_OPTIONS.name, sessionToken, SESSION_COOKIE_OPTIONS);
@@ -98,14 +116,10 @@ export async function POST(req: Request) {
           email: user.email,
           full_name: user.full_name,
           phone: user.phone,
-          date_of_birth: user.date_of_birth,
-          gender: user.gender,
-          blood_group: user.blood_group,
-          address: user.address,
           role: "doctor" as UserRole,
-          speciality: roleRow.speciality || "",
-          license_number: roleRow.license_number || "",
-          hospital_affiliation: roleRow.hospital_affiliation || "",
+          speciality: specialtyName,
+          license_number: doctorRow?.license_number || "",
+          hospital_affiliation: doctorRow?.hospital_affiliation || "UniMedi Clinic",
         },
       });
     }
@@ -114,10 +128,10 @@ export async function POST(req: Request) {
     // PATIENT AUTHENTICATION
     // =========================
     if (targetRole === "patient") {
-      // Find or create user
+      // Find or create user in normalized profiles table
       let { data: user } = await supabase
-        .from("users")
-        .select("*")
+        .from("profiles")
+        .select("id, email, full_name, phone")
         .eq("email", cleanEmail)
         .maybeSingle();
 
@@ -130,12 +144,13 @@ export async function POST(req: Request) {
         const finalName = cleanFullName || nameFromEmail;
 
         const { data: newUser, error: createError } = await supabase
-          .from("users")
+          .from("profiles")
           .insert([
             {
               email: cleanEmail,
               phone: cleanPhone || null,
               full_name: finalName,
+              is_active: true,
             },
           ])
           .select()
@@ -145,13 +160,18 @@ export async function POST(req: Request) {
           return Response.json(
             {
               success: false,
-              message: createError.message || "Failed to create patient record.",
+              message: createError.message || "Failed to create patient profile.",
             },
             { status: 500 }
           );
         }
 
         user = newUser;
+
+        // Create corresponding row in patients table
+        await supabase
+          .from("patients")
+          .insert([{ id: user.id }]);
       } else {
         // If user provided name or phone during signup, update if empty
         const updates: Record<string, any> = {};
@@ -162,15 +182,25 @@ export async function POST(req: Request) {
           updates.phone = cleanPhone;
         }
         if (Object.keys(updates).length > 0) {
-          await supabase.from("users").update(updates).eq("id", user.id);
+          await supabase.from("profiles").update(updates).eq("id", user.id);
           Object.assign(user, updates);
+        }
+
+        // Ensure patient table row exists
+        const { data: patRow } = await supabase
+          .from("patients")
+          .select("id")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (!patRow) {
+          await supabase.from("patients").insert([{ id: user.id }]);
         }
       }
 
       // Ensure patient role exists in user_roles
       const { data: existingRole } = await supabase
         .from("user_roles")
-        .select("*")
+        .select("id")
         .eq("user_id", user.id)
         .eq("role", "patient")
         .maybeSingle();

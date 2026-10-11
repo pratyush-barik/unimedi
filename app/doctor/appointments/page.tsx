@@ -42,7 +42,7 @@ export default function DoctorAppointmentsPage() {
     try {
       const { data: rows, error } = await supabase
         .from("appointments")
-        .select("*")
+        .select("*, patients(id, blood_group, gender, date_of_birth, profiles!patients_id_fkey(full_name, email, phone))")
         .eq("doctor_id", docId)
         .order("appointment_date", { ascending: true });
 
@@ -51,26 +51,21 @@ export default function DoctorAppointmentsPage() {
         return;
       }
 
-      const enriched: Appointment[] = [];
-      for (const row of rows) {
-        const { data: patientUser } = await supabase
-          .from("users")
-          .select("full_name, email, phone, blood_group, gender, date_of_birth")
-          .eq("id", row.patient_id)
-          .maybeSingle();
-
-        enriched.push({
+      const enriched: Appointment[] = rows.map((row: any) => {
+        const p = row.patients;
+        const profile = p?.profiles;
+        return {
           ...row,
           patient: {
-            full_name: patientUser?.full_name || "Patient",
-            email: patientUser?.email || "",
-            phone: patientUser?.phone || "N/A",
-            blood_group: patientUser?.blood_group,
-            gender: patientUser?.gender,
-            date_of_birth: patientUser?.date_of_birth,
+            full_name: profile?.full_name || "Patient",
+            email: profile?.email || "",
+            phone: profile?.phone || "N/A",
+            blood_group: p?.blood_group,
+            gender: p?.gender,
+            date_of_birth: p?.date_of_birth,
           },
-        });
-      }
+        };
+      });
 
       setAppointments(enriched);
     } catch (e) {
@@ -99,29 +94,38 @@ export default function DoctorAppointmentsPage() {
   const startConsultation = async (appointment: Appointment) => {
     setActionLoading(appointment.id);
     try {
-      // Check if session exists
-      const { data: existingSession } = await supabase
-        .from("doctor_sessions")
-        .select("id, approved")
+      // Check if consent exists
+      const { data: existingConsent } = await supabase
+        .from("consultation_consents")
+        .select("id, status")
         .eq("doctor_id", doctorId)
         .eq("patient_id", appointment.patient_id)
+        .in("status", ["requested", "granted"])
+        .order("granted_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
 
-      if (!existingSession) {
-        // Create session with approved = false (patient consent required or confirmed appointment context)
-        // For pre-confirmed online bookings, patient granted appointment, so create approved session for the consultation
-        await supabase.from("doctor_sessions").insert([
+      const expiresAt = new Date(Date.now() + 2 * 3600 * 1000).toISOString();
+
+      if (!existingConsent) {
+        await supabase.from("consultation_consents").insert([
           {
             doctor_id: doctorId,
             patient_id: appointment.patient_id,
-            approved: true,
+            status: "granted",
+            scope: "full_history",
+            expires_at: expiresAt,
           },
         ]);
-      } else if (!existingSession.approved) {
+      } else if (existingConsent.status !== "granted") {
         await supabase
-          .from("doctor_sessions")
-          .update({ approved: true })
-          .eq("id", existingSession.id);
+          .from("consultation_consents")
+          .update({
+            status: "granted",
+            granted_at: new Date().toISOString(),
+            expires_at: expiresAt,
+          })
+          .eq("id", existingConsent.id);
       }
 
       // Mark appointment in_consultation

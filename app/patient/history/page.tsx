@@ -28,7 +28,7 @@ export default function PatientHistoryPage() {
       }
 
       const { data: user } = await supabase
-        .from("users")
+        .from("profiles")
         .select("id, full_name, email")
         .eq("email", sessionUser.email)
         .maybeSingle();
@@ -38,42 +38,74 @@ export default function PatientHistoryPage() {
         return;
       }
 
-      const { data: rows } = await supabase
-        .from("medical_records")
-        .select("*")
+      // Fetch from normalized consultations table
+      const { data: consultRows } = await supabase
+        .from("consultations")
+        .select("id, patient_id, doctor_id, chief_complaint, clinical_notes, started_at, status")
         .eq("patient_id", user.id)
-        .order("created_at", { ascending: false });
+        .order("started_at", { ascending: false });
 
-      const finalRows: MedicalRecord[] = [];
+      if (!consultRows || consultRows.length === 0) {
+        setRecords([]);
+        setLoading(false);
+        return;
+      }
 
-      for (const row of rows || []) {
-        const { data: doctor } = await supabase
-          .from("users")
-          .select("full_name, email")
-          .eq("id", row.doctor_id)
-          .maybeSingle();
+      const consultIds = consultRows.map((c: any) => c.id);
+      const doctorIds = Array.from(new Set(consultRows.map((c: any) => c.doctor_id)));
 
-        const { data: docRole } = await supabase
-          .from("user_roles")
-          .select("speciality")
-          .eq("user_id", row.doctor_id)
-          .eq("role", "doctor")
-          .maybeSingle();
+      // Batch fetch prescriptions and items
+      const { data: rxRows } = await supabase
+        .from("prescriptions")
+        .select("id, consultation_id, general_instructions")
+        .in("consultation_id", consultIds);
+      const rxMap = new Map((rxRows || []).map((r: any) => [r.consultation_id, r]));
+      const rxIds = (rxRows || []).map((r: any) => r.id);
 
-        finalRows.push({
-          id: row.id,
-          patient_id: row.patient_id,
-          doctor_id: row.doctor_id,
-          diagnosis: row.diagnosis,
-          medicines: row.medicines,
-          notes: row.notes,
-          created_at: row.created_at,
+      const { data: items } = await supabase
+        .from("prescription_items")
+        .select("prescription_id, medicine_name, dosage, frequency, duration, timing, special_instructions")
+        .in("prescription_id", rxIds);
+      const itemsMap = new Map<string, MedicineItem[]>();
+      (items || []).forEach((item: any) => {
+        const list = itemsMap.get(item.prescription_id) || [];
+        list.push({
+          name: item.medicine_name,
+          dosage: item.dosage,
+          frequency: item.frequency,
+          duration: item.duration,
+          timing: item.timing as any,
+          instructions: item.special_instructions,
+        });
+        itemsMap.set(item.prescription_id, list);
+      });
+
+      // Batch fetch doctor profiles
+      const { data: docProfiles } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", doctorIds);
+      const docProfilesMap = new Map((docProfiles || []).map((p: any) => [p.id, p]));
+
+      const finalRows: MedicalRecord[] = consultRows.map((consult: any) => {
+        const doctor: any = docProfilesMap.get(consult.doctor_id);
+        const rx: any = rxMap.get(consult.id);
+        const medList = rx ? (itemsMap.get(rx.id) || []) : [];
+
+        return {
+          id: consult.id,
+          patient_id: consult.patient_id,
+          doctor_id: consult.doctor_id,
+          diagnosis: consult.chief_complaint || "Clinical Encounter",
+          medicines: medList,
+          notes: rx?.general_instructions || consult.clinical_notes || "",
+          created_at: consult.started_at,
           doctorName: doctor?.full_name || "Doctor",
-          doctorSpeciality: docRole?.speciality || "General Practitioner",
+          doctorSpeciality: "General Physician",
           patientName: user.full_name || "Patient",
           patientEmail: user.email,
-        });
-      }
+        };
+      });
 
       setRecords(finalRows);
     } catch {

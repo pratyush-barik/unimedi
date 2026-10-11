@@ -96,19 +96,19 @@ function DoctorPatientContent() {
 
       let targetPatientId = queryPatientId;
 
-      // If no query patient, check if there is an active session
+      // If no query patient, check if there is an active consent
       if (!targetPatientId) {
-        const { data: latestSession } = await supabase
-          .from("doctor_sessions")
-          .select("patient_id, approved")
+        const { data: latestConsent } = await supabase
+          .from("consultation_consents")
+          .select("patient_id, status, expires_at")
           .eq("doctor_id", user.id)
-          .eq("approved", true)
-          .order("created_at", { ascending: false })
+          .eq("status", "granted")
+          .order("granted_at", { ascending: false })
           .limit(1)
           .maybeSingle();
 
-        if (latestSession) {
-          targetPatientId = latestSession.patient_id;
+        if (latestConsent && (!latestConsent.expires_at || new Date(latestConsent.expires_at) > new Date())) {
+          targetPatientId = latestConsent.patient_id;
         }
       }
 
@@ -118,22 +118,25 @@ function DoctorPatientContent() {
         return;
       }
 
-      // CRITICAL IDOR VERIFICATION: Doctor can ONLY access patient data if an approved doctor_sessions row exists
-      const { data: validSession } = await supabase
-        .from("doctor_sessions")
-        .select("id, approved")
+      // CRITICAL IDOR VERIFICATION: Doctor can ONLY access patient data if an active granted consultation_consents row exists
+      const { data: validConsent } = await supabase
+        .from("consultation_consents")
+        .select("id, status, expires_at")
         .eq("doctor_id", user.id)
         .eq("patient_id", targetPatientId)
-        .eq("approved", true)
+        .eq("status", "granted")
         .maybeSingle();
 
-      if (!validSession) {
+      const isConsentActive =
+        validConsent && (!validConsent.expires_at || new Date(validConsent.expires_at) > new Date());
+
+      if (!isConsentActive) {
         // Access is restricted until patient grants consent
         setIsSessionApproved(false);
 
         // Fetch basic info for consent banner
         const { data: pUser } = await supabase
-          .from("users")
+          .from("profiles")
           .select("id, full_name, email")
           .eq("id", targetPatientId)
           .maybeSingle();
@@ -151,16 +154,30 @@ function DoctorPatientContent() {
         return;
       }
 
-      // If session is approved, load full patient health profile
+      // If consent is active, load full patient health profile from profiles and patients
       setIsSessionApproved(true);
-      const { data: patientUser } = await supabase
-        .from("users")
-        .select("id, full_name, email, phone, blood_group, gender, date_of_birth")
+      const { data: profileRow } = await supabase
+        .from("profiles")
+        .select("id, full_name, email, phone")
         .eq("id", targetPatientId)
         .maybeSingle();
 
-      if (patientUser) {
-        setPatient(patientUser);
+      const { data: patientRow } = await supabase
+        .from("patients")
+        .select("blood_group, gender, date_of_birth")
+        .eq("id", targetPatientId)
+        .maybeSingle();
+
+      if (profileRow) {
+        setPatient({
+          id: profileRow.id,
+          full_name: profileRow.full_name || "Patient",
+          email: profileRow.email,
+          phone: profileRow.phone || undefined,
+          blood_group: patientRow?.blood_group,
+          gender: patientRow?.gender,
+          date_of_birth: patientRow?.date_of_birth,
+        });
       }
     } catch (e) {
       console.error("Error loading patient consultation:", e);
@@ -289,31 +306,109 @@ function DoctorPatientContent() {
 
     try {
       const validLabTests = labTests.filter((t) => t.test_name.trim() !== "");
+      const cleanDiagnosis = (diagnosis.trim() || "General Consultation").padEnd(3, ".");
 
-      const { data: record, error } = await supabase
-        .from("medical_records")
+      // 1. Insert Consultation
+      const { data: consultation, error: consultErr } = await supabase
+        .from("consultations")
         .insert([
           {
+            appointment_id: appointmentId || null,
             patient_id: patient.id,
             doctor_id: doctorId,
-            appointment_id: appointmentId || null,
-            diagnosis: diagnosis.trim() || "Clinical Consultation",
-            medicines: validMedicines,
-            vitals: vitals,
-            lab_tests: validLabTests,
-            notes: notes.trim(),
+            chief_complaint: cleanDiagnosis,
+            clinical_notes: notes.trim() || null,
+            status: "completed",
+            concluded_at: new Date().toISOString(),
           },
         ])
         .select()
         .single();
 
-      if (error) {
-        setMessage(error.message);
-        setSaving(false);
-        return;
+      if (consultErr) throw consultErr;
+
+      // 2. Insert Clinical Vitals (if provided and within clinical bounds)
+      let systolic: number | null = null;
+      let diastolic: number | null = null;
+      if (vitals.bp) {
+        const parts = vitals.bp.split("/");
+        if (parts.length === 2) {
+          const s = parseInt(parts[0], 10);
+          const d = parseInt(parts[1], 10);
+          if (!isNaN(s) && s >= 50 && s <= 260) systolic = s;
+          if (!isNaN(d) && d >= 30 && d <= 160) diastolic = d;
+        }
+      }
+      const rawPulse = vitals.pulse ? parseInt(vitals.pulse, 10) : null;
+      const rawTemp = vitals.temperature ? parseFloat(vitals.temperature) : null;
+      const rawWeight = vitals.weight ? parseFloat(vitals.weight) : null;
+      const rawSpo2 = vitals.spo2 ? parseInt(vitals.spo2, 10) : null;
+      const rawResp = vitals.respiratory_rate ? parseInt(vitals.respiratory_rate, 10) : null;
+
+      const validPulse = rawPulse && rawPulse >= 30 && rawPulse <= 250 ? rawPulse : null;
+      const validTemp = rawTemp && rawTemp >= 90.0 && rawTemp <= 108.0 ? rawTemp : null;
+      const validWeight = rawWeight && rawWeight >= 0.5 && rawWeight <= 500.0 ? rawWeight : null;
+      const validSpo2 = rawSpo2 && rawSpo2 >= 50 && rawSpo2 <= 100 ? rawSpo2 : null;
+      const validResp = rawResp && rawResp >= 5 && rawResp <= 60 ? rawResp : null;
+
+      if (systolic || diastolic || validPulse || validTemp || validWeight || validSpo2 || validResp) {
+        await supabase.from("clinical_vitals").insert([
+          {
+            consultation_id: consultation.id,
+            systolic_bp: systolic,
+            diastolic_bp: diastolic,
+            pulse_bpm: validPulse,
+            temperature_f: validTemp,
+            weight_kg: validWeight,
+            spo2_percent: validSpo2,
+            respiratory_rate: validResp,
+          },
+        ]);
       }
 
-      // If appointment was linked, mark completed
+      // 3. Insert Diagnoses
+      await supabase.from("diagnoses").insert([
+        {
+          consultation_id: consultation.id,
+          diagnosis_name: cleanDiagnosis,
+          type: "primary",
+          notes: notes.trim() || null,
+        },
+      ]);
+
+      // 4. Insert Prescription Header
+      const { data: rx, error: rxErr } = await supabase
+        .from("prescriptions")
+        .insert([
+          {
+            consultation_id: consultation.id,
+            patient_id: patient.id,
+            doctor_id: doctorId,
+            general_instructions: notes.trim() || null,
+            is_signed: true,
+          },
+        ])
+        .select()
+        .single();
+
+      if (rxErr) throw rxErr;
+
+      // 5. Insert Prescription Line Items
+      if (validMedicines.length > 0) {
+        const allowedTimings = ["After Food", "Before Food", "With Food", "Anytime", "Empty Stomach"];
+        const rxItems = validMedicines.map((m) => ({
+          prescription_id: rx.id,
+          medicine_name: m.name.trim(),
+          dosage: m.dosage.trim() || "1 tablet",
+          frequency: m.frequency.trim() || "1-0-1",
+          duration: m.duration.trim() || "5 days",
+          timing: allowedTimings.includes(m.timing) ? m.timing : "After Food",
+          special_instructions: m.instructions?.trim() || null,
+        }));
+        await supabase.from("prescription_items").insert(rxItems);
+      }
+
+      // 6. If appointment was linked, mark completed
       if (appointmentId) {
         await supabase
           .from("appointments")
@@ -321,19 +416,19 @@ function DoctorPatientContent() {
           .eq("id", appointmentId);
       }
 
-      // Close active session
+      // 7. Expire consultation consent (NEVER deleted)
       await supabase
-        .from("doctor_sessions")
-        .delete()
+        .from("consultation_consents")
+        .update({ status: "expired" })
         .eq("patient_id", patient.id)
         .eq("doctor_id", doctorId);
 
-      // Set record for print modal
+      // 8. Set record for print modal
       setSavedRecord({
-        id: record.id,
+        id: rx.id,
         patient_id: patient.id,
         doctor_id: doctorId,
-        diagnosis: diagnosis.trim() || "Clinical Consultation",
+        diagnosis: cleanDiagnosis,
         medicines: validMedicines,
         vitals: vitals,
         lab_tests: validLabTests,
@@ -345,8 +440,9 @@ function DoctorPatientContent() {
         patientName: patient.full_name || patient.email,
         patientEmail: patient.email,
       });
-    } catch {
-      setMessage("Failed to save prescription.");
+    } catch (err: any) {
+      console.error("Save prescription error:", err);
+      setMessage(err?.message || "Failed to save prescription.");
     } finally {
       setSaving(false);
     }

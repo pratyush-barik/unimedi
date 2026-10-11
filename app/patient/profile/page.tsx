@@ -47,30 +47,41 @@ export default function PatientProfilePage() {
         return;
       }
 
-      const { data: userRow } = await supabase
-        .from("users")
+      const { data: profileRow } = await supabase
+        .from("profiles")
         .select("*")
         .eq("id", user.id)
         .maybeSingle();
 
-      if (userRow) {
+      const { data: patientRow } = await supabase
+        .from("patients")
+        .select("*")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profileRow) {
+        const rawGender = patientRow?.gender || "";
+        const formattedGender = rawGender
+          ? rawGender.charAt(0).toUpperCase() + rawGender.slice(1).replace(/_/g, " ")
+          : "Not specified";
+
         setProfile({
-          id: userRow.id,
-          full_name: userRow.full_name || "",
-          email: userRow.email || "",
-          phone: userRow.phone || "",
-          date_of_birth: userRow.date_of_birth || "",
-          gender: userRow.gender || "Not specified",
-          blood_group: userRow.blood_group || "Not specified",
-          address: userRow.address || "Not specified",
+          id: profileRow.id,
+          full_name: profileRow.full_name || "",
+          email: profileRow.email || "",
+          phone: profileRow.phone || "",
+          date_of_birth: patientRow?.date_of_birth || "",
+          gender: formattedGender,
+          blood_group: patientRow?.blood_group || "Not specified",
+          address: patientRow?.address || "Not specified",
         });
 
-        setFullName(userRow.full_name || "");
-        setPhone(userRow.phone || "");
-        setDateOfBirth(userRow.date_of_birth || "");
-        setGender(userRow.gender || "Male");
-        setBloodGroup(userRow.blood_group || "O+");
-        setAddress(userRow.address || "");
+        setFullName(profileRow.full_name || "");
+        setPhone(profileRow.phone || "");
+        setDateOfBirth(patientRow?.date_of_birth || "");
+        setGender(rawGender ? rawGender.toLowerCase() : "male");
+        setBloodGroup(patientRow?.blood_group || "O+");
+        setAddress(patientRow?.address || "");
       }
     } catch {
       router.replace("/patient/signin");
@@ -87,30 +98,58 @@ export default function PatientProfilePage() {
     setMessage(null);
 
     try {
-      const { error } = await supabase
-        .from("users")
+      const { error: profileErr } = await supabase
+        .from("profiles")
         .update({
           full_name: fullName.trim(),
-          phone: phone.trim(),
-          date_of_birth: dateOfBirth || null,
-          gender,
-          blood_group: bloodGroup,
-          address: address.trim() || null,
+          phone: phone.trim() || null,
           updated_at: new Date().toISOString(),
         })
         .eq("id", profile.id);
 
-      if (error) {
-        setMessage({ text: error.message || "Failed to update profile.", type: "error" });
-        setSaving(false);
-        return;
+      if (profileErr) throw profileErr;
+
+      const normalizedGender = gender.toLowerCase();
+      const validGender = ["male", "female", "other", "prefer_not_to_say"].includes(normalizedGender)
+        ? normalizedGender
+        : null;
+
+      const { data: existingPatient } = await supabase
+        .from("patients")
+        .select("id")
+        .eq("id", profile.id)
+        .maybeSingle();
+
+      if (!existingPatient) {
+        const { error: insertErr } = await supabase.from("patients").insert([
+          {
+            id: profile.id,
+            date_of_birth: dateOfBirth || null,
+            gender: validGender,
+            blood_group: bloodGroup || null,
+            address: address.trim() || null,
+          },
+        ]);
+        if (insertErr) throw insertErr;
+      } else {
+        const { error: updateErr } = await supabase
+          .from("patients")
+          .update({
+            date_of_birth: dateOfBirth || null,
+            gender: validGender,
+            blood_group: bloodGroup || null,
+            address: address.trim() || null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", profile.id);
+        if (updateErr) throw updateErr;
       }
 
       setMessage({ text: "Profile updated successfully!", type: "success" });
       setIsEditing(false);
       await loadProfile();
-    } catch {
-      setMessage({ text: "Failed to update profile.", type: "error" });
+    } catch (err: any) {
+      setMessage({ text: err?.message || "Failed to update profile.", type: "error" });
     } finally {
       setSaving(false);
     }
@@ -290,9 +329,10 @@ export default function PatientProfilePage() {
                   onChange={(e) => setGender(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 font-medium focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
                 >
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Other">Other</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                  <option value="prefer_not_to_say">Prefer not to say</option>
                 </select>
               </div>
             </div>

@@ -20,18 +20,31 @@ export default function ProfileSetupPage() {
   const [message, setMessage] = useState<{ text: string; type: "error" | "success" } | null>(null);
 
   useEffect(() => {
-    fetchCurrentSession().then(({ authenticated, user }) => {
+    fetchCurrentSession().then(async ({ authenticated, user }) => {
       if (!authenticated || !user) {
         router.replace("/patient/signin");
         return;
       }
 
       setUserId(user.id);
-      setFullName(user.full_name || "");
-      if (user.date_of_birth) setDateOfBirth(user.date_of_birth);
-      if (user.gender) setGender(user.gender);
-      if (user.blood_group) setBloodGroup(user.blood_group);
-      if (user.address) setAddress(user.address);
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      const { data: patient } = await supabase
+        .from("patients")
+        .select("*")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      setFullName(profile?.full_name || user.full_name || "");
+      if (patient?.date_of_birth) setDateOfBirth(patient.date_of_birth);
+      if (patient?.gender) setGender(patient.gender.toLowerCase());
+      if (patient?.blood_group) setBloodGroup(patient.blood_group);
+      if (patient?.address) setAddress(patient.address);
 
       setLoading(false);
     });
@@ -45,27 +58,55 @@ export default function ProfileSetupPage() {
     setMessage(null);
 
     try {
-      const { error } = await supabase
-        .from("users")
+      const { error: profileErr } = await supabase
+        .from("profiles")
         .update({
           full_name: fullName.trim(),
-          date_of_birth: dateOfBirth || null,
-          gender: gender || null,
-          blood_group: bloodGroup || null,
-          address: address.trim() || null,
           updated_at: new Date().toISOString(),
         })
         .eq("id", userId);
 
-      if (error) {
-        setMessage({ text: error.message || "Failed to save profile.", type: "error" });
-        setSaving(false);
-        return;
+      if (profileErr) throw profileErr;
+
+      const normalizedGender = gender.toLowerCase();
+      const validGender = ["male", "female", "other", "prefer_not_to_say"].includes(normalizedGender)
+        ? normalizedGender
+        : null;
+
+      const { data: existingPatient } = await supabase
+        .from("patients")
+        .select("id")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (!existingPatient) {
+        const { error: insertErr } = await supabase.from("patients").insert([
+          {
+            id: userId,
+            date_of_birth: dateOfBirth || null,
+            gender: validGender,
+            blood_group: bloodGroup || null,
+            address: address.trim() || null,
+          },
+        ]);
+        if (insertErr) throw insertErr;
+      } else {
+        const { error: updateErr } = await supabase
+          .from("patients")
+          .update({
+            date_of_birth: dateOfBirth || null,
+            gender: validGender,
+            blood_group: bloodGroup || null,
+            address: address.trim() || null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", userId);
+        if (updateErr) throw updateErr;
       }
 
       router.replace("/patient/dashboard");
-    } catch {
-      setMessage({ text: "An error occurred while saving.", type: "error" });
+    } catch (err: any) {
+      setMessage({ text: err?.message || "An error occurred while saving.", type: "error" });
     } finally {
       setSaving(false);
     }
@@ -144,9 +185,10 @@ export default function ProfileSetupPage() {
                 onChange={(e) => setGender(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 font-medium focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"
               >
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other / Non-binary</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+                <option value="prefer_not_to_say">Prefer not to say</option>
               </select>
             </div>
           </div>

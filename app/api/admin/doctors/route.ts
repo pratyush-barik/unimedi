@@ -16,42 +16,58 @@ export async function GET(req: Request) {
   }
 
   try {
-    // Fetch all doctors from user_roles
-    const { data: doctorRoles, error: rolesErr } = await supabase
-      .from("user_roles")
-      .select("*")
-      .eq("role", "doctor")
+    // Single joined query: doctors joined with profiles and specialties
+    const { data: doctorRows, error: docErr } = await supabase
+      .from("doctors")
+      .select(`
+        id,
+        license_number,
+        hospital_affiliation,
+        qualification,
+        verification_status,
+        created_at,
+        specialty_id
+      `)
       .order("created_at", { ascending: false });
 
-    if (rolesErr) throw rolesErr;
+    if (docErr) throw docErr;
 
-    const rolesList = (doctorRoles || []) as any[];
-    const userIds = rolesList.map((r: any) => r.user_id);
-    let usersMap = new Map();
+    const list = (doctorRows || []) as any[];
+    const doctorIds = list.map((d: any) => d.id);
+    const specialtyIds = Array.from(new Set(list.map((d: any) => d.specialty_id).filter(Boolean)));
 
-    if (userIds.length > 0) {
-      const { data: users, error: usersErr } = await supabase
-        .from("users")
-        .select("*")
-        .in("id", userIds);
-
-      if (usersErr) throw usersErr;
-      const userList = (users || []) as any[];
-      usersMap = new Map(userList.map((u: any) => [u.id, u]));
+    let profilesMap = new Map();
+    if (doctorIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, email, full_name, phone")
+        .in("id", doctorIds);
+      (profiles || []).forEach((p: any) => profilesMap.set(p.id, p));
     }
 
-    const doctors = rolesList.map((r: any) => {
-      const user = usersMap.get(r.user_id) || {};
+    let specialtiesMap = new Map();
+    if (specialtyIds.length > 0) {
+      const { data: specs } = await supabase
+        .from("medical_specialties")
+        .select("id, name")
+        .in("id", specialtyIds);
+      (specs || []).forEach((s: any) => specialtiesMap.set(s.id, s.name));
+    }
+
+    const doctors = list.map((d: any) => {
+      const p = profilesMap.get(d.id) || {};
+      const specialtyName = specialtiesMap.get(d.specialty_id) || "General Medicine";
       return {
-        id: r.user_id,
-        role_id: r.id,
-        email: user.email || "",
-        full_name: user.full_name || "",
-        phone: user.phone || "",
-        speciality: r.speciality || "",
-        license_number: r.license_number || "",
-        hospital_affiliation: r.hospital_affiliation || "",
-        created_at: r.created_at,
+        id: d.id,
+        email: p.email || "",
+        full_name: p.full_name || "",
+        phone: p.phone || "",
+        speciality: specialtyName,
+        qualification: d.qualification || "MBBS",
+        license_number: d.license_number || "",
+        hospital_affiliation: d.hospital_affiliation || "UniMedi Clinic",
+        verification_status: d.verification_status || "verified",
+        created_at: d.created_at,
       };
     });
 
@@ -81,79 +97,97 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check if user exists
-    let { data: user } = await supabase
-      .from("users")
+    // 1. Check or create profile
+    let { data: profile } = await supabase
+      .from("profiles")
       .select("id")
       .eq("email", cleanEmail)
       .maybeSingle();
 
-    if (!user) {
-      const { data: newUser, error: createErr } = await supabase
-        .from("users")
+    if (!profile) {
+      const { data: newProfile, error: createErr } = await supabase
+        .from("profiles")
         .insert([
           {
             email: cleanEmail,
             full_name: cleanName,
             phone: phone?.trim() || null,
+            is_active: true,
           },
         ])
         .select()
         .single();
 
-      if (createErr || !newUser) throw createErr || new Error("Failed to create user");
-      user = newUser;
+      if (createErr) throw createErr;
+      profile = newProfile;
     } else {
-      // Update existing user full_name/phone
       await supabase
-        .from("users")
+        .from("profiles")
         .update({
           full_name: cleanName,
           phone: phone?.trim() || null,
         })
-        .eq("id", user.id);
+        .eq("id", profile.id);
     }
 
-    if (!user) {
-      return Response.json(
-        { success: false, message: "Failed to resolve user account." },
-        { status: 500 }
-      );
+    // 2. Resolve specialty
+    let specialtyId = "00000000-0000-0000-0001-000000000001"; // Default General Medicine
+    if (speciality?.trim()) {
+      const { data: matchedSpec } = await supabase
+        .from("medical_specialties")
+        .select("id")
+        .ilike("name", `%${speciality.trim()}%`)
+        .limit(1)
+        .maybeSingle();
+      if (matchedSpec?.id) {
+        specialtyId = matchedSpec.id;
+      }
     }
 
-    // Check if role exists
+    // 3. Upsert doctor record
+    const { data: existingDoc } = await supabase
+      .from("doctors")
+      .select("id")
+      .eq("id", profile.id)
+      .maybeSingle();
+
+    if (existingDoc) {
+      await supabase
+        .from("doctors")
+        .update({
+          specialty_id: specialtyId,
+          license_number: license_number?.trim() || `MCI-${profile.id.substring(0, 8).toUpperCase()}`,
+          hospital_affiliation: hospital_affiliation?.trim() || "UniMedi Central Dispensary",
+          verification_status: "verified",
+        })
+        .eq("id", profile.id);
+    } else {
+      await supabase
+        .from("doctors")
+        .insert([
+          {
+            id: profile.id,
+            specialty_id: specialtyId,
+            license_number: license_number?.trim() || `MCI-${profile.id.substring(0, 8).toUpperCase()}`,
+            hospital_affiliation: hospital_affiliation?.trim() || "UniMedi Central Dispensary",
+            qualification: "MBBS",
+            verification_status: "verified",
+          },
+        ]);
+    }
+
+    // 4. Ensure doctor role exists in user_roles
     const { data: existingRole } = await supabase
       .from("user_roles")
       .select("id")
-      .eq("user_id", user.id)
+      .eq("user_id", profile.id)
       .eq("role", "doctor")
       .maybeSingle();
 
-    if (existingRole) {
-      const { error: updateRoleErr } = await supabase
+    if (!existingRole) {
+      await supabase
         .from("user_roles")
-        .update({
-          speciality: speciality?.trim() || "General Physician",
-          license_number: license_number?.trim() || null,
-          hospital_affiliation: hospital_affiliation?.trim() || null,
-        })
-        .eq("id", existingRole.id);
-
-      if (updateRoleErr) throw updateRoleErr;
-    } else {
-      const { error: insertRoleErr } = await supabase
-        .from("user_roles")
-        .insert([
-          {
-            user_id: user.id,
-            role: "doctor",
-            speciality: speciality?.trim() || "General Physician",
-            license_number: license_number?.trim() || null,
-            hospital_affiliation: hospital_affiliation?.trim() || null,
-          },
-        ]);
-
-      if (insertRoleErr) throw insertRoleErr;
+        .insert([{ user_id: profile.id, role: "doctor" }]);
     }
 
     return Response.json({
@@ -179,28 +213,35 @@ export async function PATCH(req: Request) {
       return Response.json({ success: false, message: "Doctor ID is required." }, { status: 400 });
     }
 
-    // Update user info
+    // Update profile info
     if (full_name !== undefined || phone !== undefined) {
       const updates: any = {};
       if (full_name) updates.full_name = full_name.trim();
       if (phone !== undefined) updates.phone = phone?.trim() || null;
 
-      await supabase.from("users").update(updates).eq("id", id);
+      await supabase.from("profiles").update(updates).eq("id", id);
     }
 
-    // Update user_roles info
-    const roleUpdates: any = {};
-    if (speciality !== undefined) roleUpdates.speciality = speciality.trim();
-    if (license_number !== undefined) roleUpdates.license_number = license_number?.trim() || null;
+    // Update doctor record
+    const docUpdates: any = {};
+    if (license_number !== undefined) docUpdates.license_number = license_number?.trim() || null;
     if (hospital_affiliation !== undefined)
-      roleUpdates.hospital_affiliation = hospital_affiliation?.trim() || null;
+      docUpdates.hospital_affiliation = hospital_affiliation?.trim() || null;
 
-    if (Object.keys(roleUpdates).length > 0) {
-      await supabase
-        .from("user_roles")
-        .update(roleUpdates)
-        .eq("user_id", id)
-        .eq("role", "doctor");
+    if (speciality !== undefined) {
+      const { data: matchedSpec } = await supabase
+        .from("medical_specialties")
+        .select("id")
+        .ilike("name", `%${speciality.trim()}%`)
+        .limit(1)
+        .maybeSingle();
+      if (matchedSpec?.id) {
+        docUpdates.specialty_id = matchedSpec.id;
+      }
+    }
+
+    if (Object.keys(docUpdates).length > 0) {
+      await supabase.from("doctors").update(docUpdates).eq("id", id);
     }
 
     return Response.json({
@@ -226,19 +267,9 @@ export async function DELETE(req: Request) {
       return Response.json({ success: false, message: "Doctor ID is required." }, { status: 400 });
     }
 
-    // Delete doctor role and user
+    // Delete doctor and user_roles
+    await supabase.from("doctors").delete().eq("id", id);
     await supabase.from("user_roles").delete().eq("user_id", id).eq("role", "doctor");
-    
-    // Check if user has other roles; if not, delete user
-    const { data: otherRoles } = await supabase
-      .from("user_roles")
-      .select("id")
-      .eq("user_id", id);
-
-    const otherRolesList = (otherRoles || []) as any[];
-    if (otherRolesList.length === 0) {
-      await supabase.from("users").delete().eq("id", id);
-    }
 
     return Response.json({
       success: true,

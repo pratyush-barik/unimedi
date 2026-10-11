@@ -17,7 +17,7 @@ export async function GET(req: Request) {
 
     // Ping Supabase to keep project warm and active
     const { count, error } = await supabase
-      .from("users")
+      .from("profiles")
       .select("*", { count: "exact", head: true });
 
     if (error) {

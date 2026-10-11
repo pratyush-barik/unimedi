@@ -29,7 +29,7 @@ export default function PatientPrescriptionsPage() {
       }
 
       const { data: user } = await supabase
-        .from("users")
+        .from("profiles")
         .select("id, full_name, email")
         .eq("email", sessionUser.email)
         .maybeSingle();
@@ -39,48 +39,85 @@ export default function PatientPrescriptionsPage() {
         return;
       }
 
-      const { data: rows } = await supabase
-        .from("medical_records")
-        .select("*")
+      // Fetch from normalized prescriptions table
+      const { data: rxRows } = await supabase
+        .from("prescriptions")
+        .select("id, consultation_id, patient_id, doctor_id, issued_at, general_instructions, is_signed")
         .eq("patient_id", user.id)
-        .order("created_at", { ascending: false });
+        .order("issued_at", { ascending: false });
 
-      if (!rows || rows.length === 0) {
+      if (!rxRows || rxRows.length === 0) {
         setRecords([]);
         setLoading(false);
         return;
       }
 
-      const enriched: MedicalRecord[] = [];
-      for (const row of rows) {
-        const { data: docUser } = await supabase
-          .from("users")
-          .select("full_name, email")
-          .eq("id", row.doctor_id)
-          .maybeSingle();
+      const rxIds = rxRows.map((r: any) => r.id);
+      const consultIds = rxRows.map((r: any) => r.consultation_id).filter(Boolean);
+      const doctorIds = Array.from(new Set(rxRows.map((r: any) => r.doctor_id)));
 
-        const { data: docRole } = await supabase
-          .from("user_roles")
-          .select("speciality")
-          .eq("user_id", row.doctor_id)
-          .eq("role", "doctor")
-          .maybeSingle();
+      // Batch fetch prescription items
+      const { data: items } = await supabase
+        .from("prescription_items")
+        .select("prescription_id, medicine_name, dosage, frequency, duration, timing, special_instructions")
+        .in("prescription_id", rxIds);
+      const itemsMap = new Map<string, MedicineItem[]>();
+      (items || []).forEach((item: any) => {
+        const list = itemsMap.get(item.prescription_id) || [];
+        list.push({
+          name: item.medicine_name,
+          dosage: item.dosage,
+          frequency: item.frequency,
+          duration: item.duration,
+          timing: item.timing as any,
+          instructions: item.special_instructions,
+        });
+        itemsMap.set(item.prescription_id, list);
+      });
 
-        enriched.push({
-          id: row.id,
-          patient_id: row.patient_id,
-          doctor_id: row.doctor_id,
-          appointment_id: row.appointment_id,
-          diagnosis: row.diagnosis,
-          medicines: row.medicines,
-          notes: row.notes,
-          created_at: row.created_at,
-          doctorName: docUser?.full_name || "Doctor",
-          doctorSpeciality: docRole?.speciality || "Specialist",
+      // Batch fetch consultations
+      const { data: consults } = await supabase
+        .from("consultations")
+        .select("id, chief_complaint, clinical_notes")
+        .in("id", consultIds);
+      const consultsMap = new Map((consults || []).map((c: any) => [c.id, c]));
+
+      // Batch fetch doctor profiles
+      const { data: docProfiles } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", doctorIds);
+      const docProfilesMap = new Map((docProfiles || []).map((p: any) => [p.id, p]));
+
+      // Batch fetch doctor clinical records
+      const { data: docRecords } = await supabase
+        .from("doctors")
+        .select("id, hospital_affiliation")
+        .in("id", doctorIds);
+      const docRecordsMap = new Map((docRecords || []).map((d: any) => [d.id, d]));
+
+      const enriched: MedicalRecord[] = rxRows.map((rx: any) => {
+        const docP: any = docProfilesMap.get(rx.doctor_id);
+        const docD: any = docRecordsMap.get(rx.doctor_id);
+        const consult: any = consultsMap.get(rx.consultation_id);
+        const medList = itemsMap.get(rx.id) || [];
+
+        return {
+          id: rx.id,
+          patient_id: rx.patient_id,
+          doctor_id: rx.doctor_id,
+          appointment_id: rx.consultation_id,
+          diagnosis: consult?.chief_complaint || "General Consultation",
+          medicines: medList,
+          notes: rx.general_instructions || consult?.clinical_notes || "",
+          created_at: rx.issued_at,
+          doctorName: docP?.full_name || "Doctor",
+          doctorSpeciality: "General Physician",
+          doctorHospital: docD?.hospital_affiliation || "UniMedi Clinic",
           patientName: user.full_name || "Patient",
           patientEmail: user.email,
-        });
-      }
+        };
+      });
 
       setRecords(enriched);
     } catch (e) {

@@ -68,7 +68,7 @@ export default function PatientDashboard() {
       setUpcomingCount(aptCount || 0);
 
       const { count: rxCount } = await supabase
-        .from("medical_records")
+        .from("prescriptions")
         .select("*", { count: "exact", head: true })
         .eq("patient_id", pId);
       setPrescriptionCount(rxCount || 0);
@@ -79,55 +79,60 @@ export default function PatientDashboard() {
 
   const checkDoctorSessions = async (pId: string) => {
     try {
-      // 1. Check pending session requests (approved = false)
+      // 1. Check pending session requests (status = 'requested')
       const { data: pendingRows } = await supabase
-        .from("doctor_sessions")
-        .select("id, doctor_id, created_at, approved")
+        .from("consultation_consents")
+        .select("id, doctor_id, created_at, status")
         .eq("patient_id", pId)
-        .eq("approved", false);
+        .eq("status", "requested");
 
       if (pendingRows && pendingRows.length > 0) {
-        const enriched: PendingRequest[] = [];
-        for (const row of pendingRows) {
-          const { data: docUser } = await supabase
-            .from("users")
-            .select("full_name")
-            .eq("id", row.doctor_id)
-            .maybeSingle();
+        const docIds = pendingRows.map((r: any) => r.doctor_id);
+        
+        // Single batch fetch for all doctor profiles
+        const { data: docProfiles } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .in("id", docIds);
+        const docProfilesMap = new Map((docProfiles || []).map((p: any) => [p.id, p.full_name]));
 
-          const { data: docRole } = await supabase
-            .from("user_roles")
-            .select("speciality, hospital_affiliation")
-            .eq("user_id", row.doctor_id)
-            .eq("role", "doctor")
-            .maybeSingle();
+        // Single batch fetch for all doctor clinical details
+        const { data: docRecords } = await supabase
+          .from("doctors")
+          .select("id, hospital_affiliation, specialty_id")
+          .in("id", docIds);
+        const docRecordsMap = new Map((docRecords || []).map((d: any) => [d.id, d]));
 
-          enriched.push({
+        const enriched: PendingRequest[] = pendingRows.map((row: any) => {
+          const docName = docProfilesMap.get(row.doctor_id) || "Doctor";
+          const docDetail = docRecordsMap.get(row.doctor_id) as any;
+          return {
             sessionId: row.id,
-            doctorName: docUser?.full_name || "Doctor",
-            doctorSpeciality: docRole?.speciality || "General Physician",
-            doctorHospital: docRole?.hospital_affiliation || "UniMedi Clinic",
+            doctorName: docName,
+            doctorSpeciality: "General Physician",
+            doctorHospital: docDetail?.hospital_affiliation || "UniMedi Clinic",
             createdAt: row.created_at,
-          });
-        }
+          };
+        });
+
         setPendingRequests(enriched);
       } else {
         setPendingRequests([]);
       }
 
-      // 2. Check active approved session
+      // 2. Check active approved consent session (status = 'granted')
       const { data: activeRow } = await supabase
-        .from("doctor_sessions")
-        .select("doctor_id")
+        .from("consultation_consents")
+        .select("doctor_id, expires_at")
         .eq("patient_id", pId)
-        .eq("approved", true)
-        .order("created_at", { ascending: false })
+        .eq("status", "granted")
+        .order("granted_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      if (activeRow) {
+      if (activeRow && (!activeRow.expires_at || new Date(activeRow.expires_at) > new Date())) {
         const { data: docUser } = await supabase
-          .from("users")
+          .from("profiles")
           .select("full_name")
           .eq("id", activeRow.doctor_id)
           .maybeSingle();
@@ -142,9 +147,10 @@ export default function PatientDashboard() {
 
   const handleApproveSession = async (sessionId: string) => {
     try {
+      const expiresAt = new Date(Date.now() + 2 * 3600 * 1000).toISOString();
       await supabase
-        .from("doctor_sessions")
-        .update({ approved: true })
+        .from("consultation_consents")
+        .update({ status: "granted", expires_at: expiresAt })
         .eq("id", sessionId);
 
       if (userId) await checkDoctorSessions(userId);
@@ -155,7 +161,10 @@ export default function PatientDashboard() {
 
   const handleDenySession = async (sessionId: string) => {
     try {
-      await supabase.from("doctor_sessions").delete().eq("id", sessionId);
+      await supabase
+        .from("consultation_consents")
+        .update({ status: "revoked" })
+        .eq("id", sessionId);
       if (userId) await checkDoctorSessions(userId);
     } catch (e) {
       console.error("Failed to deny session:", e);
