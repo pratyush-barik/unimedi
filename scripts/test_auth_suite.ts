@@ -25,13 +25,13 @@ async function runTestSuite() {
   // ----------------------------------------------------
   console.log("\n[TEST 1] Wrong OTP Verification Check");
   const testEmail = "test_patient_1@uni.edu";
-  const realOtp = generateOTP(testEmail);
-  const wrongResult = verifyOTP(testEmail, "000000");
+  const realOtp = await generateOTP(testEmail);
+  const wrongResult = await verifyOTP(testEmail, "000000");
   assert(wrongResult.success === false, "Wrong OTP was rejected");
   assert(Boolean(wrongResult.reason && wrongResult.reason.includes("Invalid OTP")), "Appropriate error reason returned for wrong OTP");
 
   // Verify correct OTP succeeds
-  const rightResult = verifyOTP(testEmail, realOtp);
+  const rightResult = await verifyOTP(testEmail, realOtp);
   assert(rightResult.success === true, "Correct OTP was verified successfully");
 
   // ----------------------------------------------------
@@ -42,6 +42,9 @@ async function runTestSuite() {
   const newPhone = "+91 9123456780";
   const newName = "Sneha Kulkarni";
 
+  // Pre-cleanup if exists
+  await supabase.from("profiles").delete().eq("email", newPatientEmail);
+
   // Check user does not exist before
   const { data: preCheck } = await supabase.from("profiles").select("*").eq("email", newPatientEmail).maybeSingle();
   assert(!preCheck, "New patient does not exist prior to signup");
@@ -49,7 +52,6 @@ async function runTestSuite() {
   // Simulate verify-otp logic for signup
   const { data: newUser, error: createErr } = await supabase.from("profiles").insert([
     {
-      id: "99999999-9999-4999-a999-999999999999",
       email: newPatientEmail,
       phone: newPhone,
       full_name: newName,
@@ -108,6 +110,10 @@ async function runTestSuite() {
   // ----------------------------------------------------
   console.log("\n[TEST 4] Patient Login with New Email (Auto-provisioning)");
   const autoEmail = "dev.sharma.unimedi@gmail.com";
+
+  // Pre-cleanup if exists
+  await supabase.from("profiles").delete().eq("email", autoEmail);
+
   const { data: preAutoCheck } = await supabase.from("profiles").select("*").eq("email", autoEmail).maybeSingle();
   assert(!preAutoCheck, "Auto-provisioning target does not exist initially");
 
@@ -115,7 +121,6 @@ async function runTestSuite() {
   const autoName = autoEmail.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
   const { data: autoUser } = await supabase.from("profiles").insert([
     {
-      id: "88888888-8888-4888-a888-888888888888",
       email: autoEmail,
       full_name: autoName,
     }
@@ -173,6 +178,9 @@ async function runTestSuite() {
 
   const { data: restoredUser } = await supabase.from("profiles").select("*").eq("id", restoredPayload!.userId).maybeSingle();
   assert(Boolean(restoredUser && restoredUser.email === newPatientEmail), "Full profile restored from database via session userId");
+
+  // Post-test cleanup
+  await supabase.from("profiles").delete().in("email", [newPatientEmail, autoEmail]);
 
   console.log("\n==================================================");
   console.log(`TEST SUMMARY: ${passed} PASSED, ${failed} FAILED`);

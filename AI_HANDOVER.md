@@ -43,6 +43,7 @@ All live data resides in the `public` schema in Supabase:
 
 ### A. Authentication & Session Management
 * **HMAC-SHA256 Signed Cookies**: On OTP verification, `/api/verify-otp` issues a signed `session_token` cookie configured with `httpOnly`, `sameSite: lax`, and `secure` in production.
+* **Persistent Multi-Worker OTP Storage**: OTP codes, attempts, and rate-limiting timestamps are stored in Supabase PostgreSQL table `public.auth_otps` with service-role RLS policies, ensuring verification works seamlessly across Next.js worker threads, server restarts, and serverless environments.
 * **Server-Side Validation**: `/api/session` verifies the HMAC signature and decrypts the active session payload. Client-side JavaScript cannot read or tamper with auth credentials.
 * **Universal Database Proxy (`/api/db`)**: Client components make query builder requests through `/api/db`. This proxy validates active iron-session cookies and executes authorized queries via `supabaseAdmin` (`service_role`), completely shielding the database from direct unauthenticated browser access.
 
@@ -127,7 +128,7 @@ unimedi/
 ├── lib/
 │   ├── authClient.ts                   # Client auth fetcher
 │   ├── mailer.ts                       # Nodemailer transport
-│   ├── otpStore.ts                     # In-memory OTP store & rate limiting
+│   ├── otpStore.ts                     # Persistent PostgreSQL auth_otps store & rate limiting
 │   ├── session.ts                      # HMAC cookie signing & verification
 │   ├── supabase.ts                     # Universal query builder & supabaseAdmin
 │   └── types.ts                        # TypeScript interfaces for all 16 entities

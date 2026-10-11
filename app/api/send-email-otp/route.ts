@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     }
 
     // Rate limit check
-    const rateLimit = checkOTPRateLimit(cleanEmail);
+    const rateLimit = await checkOTPRateLimit(cleanEmail);
     if (!rateLimit.allowed) {
       return Response.json(
         {
@@ -122,7 +122,7 @@ export async function POST(req: Request) {
     }
 
     // Generate & send OTP
-    const otp = generateOTP(cleanEmail);
+    const otp = await generateOTP(cleanEmail);
     await sendOTP(cleanEmail, otp);
 
     return Response.json({

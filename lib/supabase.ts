@@ -39,7 +39,9 @@ class ClientQueryBuilder {
   }
 
   select(columns: string = "*", options?: { count?: string; head?: boolean }) {
-    this.action = "select";
+    if (this.action !== "insert" && this.action !== "update") {
+      this.action = "select";
+    }
     this.columns = columns;
     if (options?.count) this.countOption = options.count;
     if (options?.head) this.isHead = true;

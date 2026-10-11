@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     }
 
     // 1. Verify OTP
-    const verificationResult = verifyOTP(cleanEmail, cleanOtp);
+    const verificationResult = await verifyOTP(cleanEmail, cleanOtp);
 
     if (!verificationResult.success) {
       return Response.json(
