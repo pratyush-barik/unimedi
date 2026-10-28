@@ -1,0 +1,20 @@
+name: Keep Supabase Database Active
+
+on:
+  schedule:
+    # Runs every 3 days at 00:00 UTC (well within Supabase's 7-day inactivity pause threshold)
+    - cron: '0 0 */3 * *'
+  workflow_dispatch: # Allows manual trigger anytime from GitHub Actions tab
+
+jobs:
+  ping-db:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase Database via API
+        env:
+          APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL || 'https://unimedi.vercel.app' }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          echo "Pinging keep-alive endpoint..."
+          curl -f -X GET "$APP_URL/api/cron/ping" \
+            -H "Authorization: Bearer $CRON_SECRET" || echo "Ping request executed"
